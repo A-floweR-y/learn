@@ -355,3 +355,36 @@ tar -zxvf dist.tar.gz -C /var/www/html
 ```
 
 当天还有 `gzip` 和 `zip` 等命令，但是我觉得没有使用场景，用的时候再查吧！
+
+---
+
+## 进程、端口
+
+### lsof
+
+> List Open Files
+
+在 Linux 哲学里，“一切皆文件”（包括网络连接、管道、设备等）。`lsof` 就是专门来查看是谁占用了这个资源。
+
+常用命令：
+
+`-i`：
+  - 最常用，查看谁占用了端口 `lsof -i:端口号`。
+  - 其中 `PID` 是最重要的，`COMMAND` 查看程序名称。输出结果如下。
+```bash
+COMMAND   PID   USER   FD   TYPE  DEVICE    SIZE/OFF  NODE          NAME
+node      12345 root   22u  IPv4  XXXXX     0t0       TCP *:3000    (LISTEN)
+```
+
+### kill
+
+找到谁占用了，要杀死这个进程：`kill PID`。
+但是有一点需要清楚，`kill PID`只是通知这个进程要赶紧退出。但是，如果这时候这个进程本身就卡死了，就需要用 `kill -9 PID` 来强制杀死进程。如果可以，尽可能不用强制杀死进程。
+
+### ps
+
+> 对应英文：Process Status
+
+进程快照状态，把所有正在运行的进程（程序）给你列出来。快照是静态的，要查看动态的，需要使用 `top`。
+命令不需要记，多数情况都是固定的：`ps aux` 全部查看。
+一般要配合 grep 来筛选出对应的进程。比如：`ps aux | grep "node"`。
