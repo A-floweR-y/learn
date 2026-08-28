@@ -388,3 +388,81 @@ node      12345 root   22u  IPv4  XXXXX     0t0       TCP *:3000    (LISTEN)
 进程快照状态，把所有正在运行的进程（程序）给你列出来。快照是静态的，要查看动态的，需要使用 `top`。
 命令不需要记，多数情况都是固定的：`ps aux` 全部查看。
 一般要配合 grep 来筛选出对应的进程。比如：`ps aux | grep "node"`。
+
+---
+
+## 网络
+
+### ssh root@ip地址
+
+> 对应英文：Secure Shell（安全外壳协议）
+
+链接自己的远程服务器（`ssh root@你的服务器IP`）。如果端口被改过（比如 2222），那就是：`sh -p 2222 root@你的服务器IP`。默认端口是 `22`.
+
+当然每次登录都输入 IP 地址和密码都比较费事，可以在本地生成一个专门的 `ssh-key`：
+```bash
+# -t 指定加密算法 ed25519 首选，rsa 有点老了
+# -f 指定文件名称
+# -C 备注内容
+ssh-keygen -t ed25519 -f ~/.ssh/my_server -C "my server"
+```
+
+然后再 `~/.ssh/config` 文件夹创建一个快捷登录的别名。内容如下：
+```bash
+Host myserver
+  HostName 你的服务器IP
+  User root
+  Port 2222
+  IdentityFile ~/.ssh/my_server
+  IdentitiesOnly yes
+```
+
+使用 `ssh-copy-id` 把密码跟 `ssh` 进行绑定：`ssh-copy-id -i ~/.ssh/my_server.pub myserver`。这时候需要输入一次密码，以后就不需要输入密码了，直接输入：`ssh myserver` 即可。
+
+### scp [参数] 源路径 目标路径
+
+> 对应英文：Secure Copy（安全复制）
+
+使用 SSH 协议，把本地文件拷贝到指定的服务器上，或者从服务器下载到本地。
+
+
+**上传文件/目录**：
+`scp 文件 root@IP地址:目录地址`。当然如果想上传整个目录还是需要 `-r` 参数：`scp -r 目录 root@IP地址:目录地址`。
+
+下载文件/目录：
+`scp root@IP地址:目录地址 文件地址`。当然如果想上传整个目录还是需要 `-r` 参数：`scp -r root@IP地址:目录地址 文件地址`。
+
+如果不想要输入这么多命令，就只能配置个命令别名了，`~/.ssh/config` 就不支持了。比如在 `~/.zshrc` 中配置：`alias deploy='scp dist.tar.gz myserver:/var/www/html/'`
+
+
+### ping
+
+> 对应英文：Packet Internet Groper（互联网包探测工具）
+
+这个就太常用了，看看地址通不通。直接：`ping hostname`
+
+**常用参数**：
+
+`-c`：
+  - `ping` 多少次。结束时会给一个统计数据。包含：丢包率、最小/平均/最大时长。
+  - 对应单词 Count。
+
+`-i`：
+  - 每次 `ping` 的时间间隔，默认 1 秒钟。
+  - 对应单词 Interval。
+
+### curl [参数] URL
+
+> 对应英文：Client URL
+
+多数情况下就是补全一下 ping 的能力。
+
+常用命令：
+
+-i：
+  - 返回 Response Head
+  - 对应单词：Includes
+
+-v：
+  - 查看更详细的各个节点握手过程
+  - 对应英文：Verbose
