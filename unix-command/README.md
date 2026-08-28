@@ -5,13 +5,41 @@
 ## 目录
 
 - [文件与目录管理](#文件与目录管理)
+  - [ls](#ls-可选参数-目录)
+  - [cd](#cd-目录)
+  - [pwd](#pwd)
+  - [mkdir](#mkdir-目录)
+  - [rm](#rm-可选参数-文件或目录)
+  - [cp](#cp-可选参数-源-目标)
+  - [mv](#mv-可选参数-源-目标)
+  - [touch](#touch-文件)
 - [查看文件内容](#查看文件内容)
+  - [cat](#cat-文件)
+  - [less](#less-文件)
+  - [head / tail](#head--tail-可选参数-文件)
+  - [wc](#wc-可选参数-文件)
 - [搜索](#搜索)
+  - [grep](#grep-可选参数-模式-文件或目录)
+  - [find](#find-搜索路径-匹配条件-处理动作)
+  - [which](#which-命令)
 - [压缩、打包](#压缩打包)
+  - [tar](#tar-可选参数)
 - [进程、端口](#进程端口)
+  - [lsof](#lsof-可选参数)
+  - [kill](#kill-进程号)
+  - [ps](#ps)
 - [网络](#网络)
+  - [ssh](#ssh-用户地址)
+  - [scp](#scp-可选参数-源路径-目标路径)
+  - [ping](#ping-可选参数-地址)
+  - [curl](#curl-可选参数-url)
+  - [exit](#exit)
 - [符号](#符号)
 - [系统信息](#系统信息)
+  - [echo](#echo-内容)
+  - [date](#date)
+  - [export](#export-变量名称变量内容)
+  - [clear](#clear)
 
 ---
 
@@ -378,10 +406,6 @@ scp -r root@IP地址:目录地址 文件地址
 
 - **`-i`**（include）：返回 Response Head
 - **`-v`**（verbose）：查看更详细的各个节点握手过程
-
-### exit
-
-退出 ssh 连接。
 
 ### exit
 
