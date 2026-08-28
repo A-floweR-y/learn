@@ -320,7 +320,6 @@ ssh-keygen -t ed25519 -f ~/.ssh/my_server -C "my server"
 ```
 
 然后再 `~/.ssh/config` 文件夹创建一个快捷登录的别名。内容如下：
-
 ```bash
 Host myserver
   HostName 你的服务器IP
