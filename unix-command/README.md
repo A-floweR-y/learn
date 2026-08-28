@@ -189,3 +189,16 @@ tips: 还有个 `rmdir` 的命令，它能用来删除空的目录，如果不�
 -l:
   - 打印的行数
   - 对应的单词是 Lines
+
+---
+
+## 搜索
+
+### grep [-options] "matchValue" [targetFile]
+
+> 对应单词：global regular expression print
+
+`grep` 是 `Unix/Linux` 中最核心、最强大的**文本搜索工具**，全称：全局正则表达式打印。它的功能就是：在文件或输入流中，根据指定的“模式（Pattern）”过滤出匹配的行。它不仅仅是找关键词，**它的灵魂在于支持正则表达式**。
+
+tips：如果不指定文件，它会读取标准输入。
+
