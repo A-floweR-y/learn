@@ -6,5 +6,31 @@
 
 ## 小径
 
-- [Unix Command](./unix-command/README.md)
-- [Github Actions](./github-actions/README.md)
+- [Unix Command](./unix-command/README.md) - 黑窗口里的极简主义
+- [Github Actions](./github-actions/README.md) - 关于CI/CD的魅力
+
+## 未至
+
+- Nginx
+- Fastify
+- SQLite
+- Jest
+- Coverage + Badge
+- Git
+- Web Socket
+- IndexedDB
+- Service Worker
+- Workbox
+- KLineChart
+- TradingView
+- TLS/HTTPS
+- NestJS
+- Vitest
+- PostgreSQL
+- CDN/Browser Cache
+- Docker
+- Docker Compose
+- TypeScript
+- go
+- Rust
+- Python
