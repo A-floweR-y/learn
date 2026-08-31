@@ -204,6 +204,67 @@ on:
 | `shell` | 指定 shell，默认 Ubuntu 上是 bash |
 | `working-directory` | 在哪个目录里执行 |
 
+```yaml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]  # 推送触发
+  pull_request:
+    branches: [ main ]          # PR 触发
+  workflow_dispatch:            # 手动触发（加个按钮）
+
+# 关键：取消旧版工作流，节省资源
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 1. 质量检查（Lint + Test）—— 并行执行
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'          # 🔥 核心！自动缓存 node_modules，提速 80%
+      - run: npm ci             # 推荐 ci 而非 install（锁定版本，更快）
+      - run: npm run lint
+      - run: npm run test
+
+  # 2. 构建打包（依赖 quality 通过）
+  build:
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build       # 假设输出 dist/
+      # 🔥 核心：将构建产物上传，供后续部署使用（不用重复构建）
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-files
+          path: dist/
+
+  # 3. 部署（仅当 main 分支且有构建产物）
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'  # 只有主分支才部署
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-files
+          path: dist
+      # 这里接你的部署动作（见下文高频场景）
+      - run: echo "部署静态资源到 OSS/CDN..."
+```
+
 ---
 
 ## 重要的原则
