@@ -4,10 +4,14 @@
 
 学一点，记一点。林深，路未完...
 
+> 手册很薄，只记高频。用两成篇幅，对八成场景，剩下的留给问题。
+
 ## 小径
 
 - [Unix Command](./unix-command/README.md) - 黑窗口里的极简主义
-- [Github Actions](./github-actions/README.md) - 关于CI/CD的魅力
+    - [cron](./unix-command/cron.md) - 让闹钟唤醒你的程序
+    - [Vim](./unix-command/vim.md) - 不爱，可有时只有它在
+- [Github Actions](./github-actions/README.md) - 关于 CI/CD 的魅力
 
 ## 未至
 
