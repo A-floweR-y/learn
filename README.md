@@ -15,6 +15,7 @@
 
 ## 未至
 
+- ssh & ssh-keygen
 - Nginx
 - Fastify
 - SQLite
@@ -35,6 +36,24 @@
 - Docker
 - Docker Compose
 - TypeScript
+- Vite
+- Rollup
+- NuxtJS
+- NextJS
+- Electron
+- Taro
+- WebRTC
+- 微前端
+- 网络
+- 前端性能
+- 可访问性与语义 HTML
+- 前端监控
+- 鉴权与 Web 安全（XSS/CSRF/Cookie/CORS/依赖漏洞）
+- E2E Playwright + 自动化测试
+- CSS 原子化
+- Monorepo
 - go
 - Rust
+- WebAssembly
 - Python
+- shadcn/ui
