@@ -44,6 +44,8 @@
   - [date](#date)
   - [export](#export-变量名称变量内容)
   - [clear](#clear)
+- [其他](#其他)
+  - [man](#man-command)
 
 ---
 
@@ -460,7 +462,6 @@ scp dist.tar.gz myserver:/var/www/html/
 ### clear
 
 清空屏幕，方便查看内容。
-
 
 ---
 
