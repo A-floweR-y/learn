@@ -13,11 +13,12 @@
     - [Vim](./unix-command/vim.md) - 不爱，可有时只有它在
     - [apt / dnf](./unix-command/apt-dnf.md) - 安装包管理小工具
 - [Github Actions](./github-actions/README.md) - 关于 CI/CD 的魅力
-- [Nginx](./nigix/README.md) - 轻量、高性能的 Web 服务器
+- [Nginx](./nginx/README.md) - 轻量、高性能的 Web 服务器
 
 ## 未至
 
 - Fastify
+- pm2
 - SQLite
 - Jest
 - Coverage + Badge
