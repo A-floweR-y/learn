@@ -463,6 +463,10 @@ scp dist.tar.gz myserver:/var/www/html/
 
 清空屏幕，方便查看内容。
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/master
 ---
 
 ## 其他
