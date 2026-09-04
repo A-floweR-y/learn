@@ -10,13 +10,12 @@
 
 - [Unix Command](./unix-command/README.md) - 黑窗口里的极简主义
     - [cron](./unix-command/cron.md) - 让闹钟唤醒你的程序
-    - [Vim](./unix-command/vim.md) - 不爱，可有时只有它在
+    - [vim](./unix-command/vim.md) - 不爱，可有时只有它在
 - [Github Actions](./github-actions/README.md) - 关于 CI/CD 的魅力
+- [Nginx](./nigix/README.md) - 轻量、高性能的 Web 服务器
 
 ## 未至
 
-- ssh & ssh-keygen
-- Nginx
 - Fastify
 - SQLite
 - Jest
@@ -57,3 +56,4 @@
 - WebAssembly
 - Python
 - shadcn/ui
+- AI Agent
