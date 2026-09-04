@@ -44,8 +44,6 @@
   - [date](#date)
   - [export](#export-变量名称变量内容)
   - [clear](#clear)
-- 专题 — 用到再翻，不必先学
-  - [cron](./cron.md)
 
 ---
 
@@ -462,3 +460,12 @@ scp dist.tar.gz myserver:/var/www/html/
 ### clear
 
 清空屏幕，方便查看内容。
+
+
+---
+
+## 其他
+
+### man [command]
+
+查看任何工具的帮助手册，比如 `man ls`、`man nginx`。
