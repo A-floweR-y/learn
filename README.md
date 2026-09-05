@@ -10,7 +10,7 @@
 
 - [Unix Command](./unix-command/README.md) - 黑窗口里的极简主义
     - [cron](./unix-command/cron.md) - 让闹钟唤醒你的程序
-    - [Vim](./unix-command/vim.md) - 不爱，可有时只有它在
+    - [vim](./unix-command/vim.md) - 不爱，可有时只有它在
     - [apt / dnf](./unix-command/apt-dnf.md) - 安装包管理小工具
 - [Github Actions](./github-actions/README.md) - 关于 CI/CD 的魅力
 - [Nginx](./nginx/README.md) - 轻量、高性能的 Web 服务器
@@ -45,7 +45,7 @@
 - Taro
 - WebRTC
 - 微前端
-- 网络
+- 网络理论：DNS、TLS、UDP/QUIC、HTTP 语义、压缩与传输、HTTP 1.1、HTTPS、HTTP2、HTTP3、IP/TCP、同源与跨域、WebSocket、WebRTC
 - 前端性能
 - 可访问性与语义 HTML
 - 前端监控
