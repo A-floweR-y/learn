@@ -14,6 +14,8 @@
     - [apt / dnf](./unix-command/apt-dnf.md) - 安装包管理小工具
 - [Github Actions](./github-actions/README.md) - 关于 CI/CD 的魅力
 - [Nginx](./nginx/README.md) - 轻量、高性能的 Web 服务器
+    - [location 匹配规则](./nginx/location.md) - 请求落到哪一条 location
+    - [location 匹配流程图](./nginx/location-flow.md) - 五种写法怎么走完一轮
 
 ## 未至
 
