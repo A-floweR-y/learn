@@ -20,7 +20,7 @@
     - [server_name](#server_name)
     - [root](#root)
     - [index](#index)
-    - [location](#location)
+    - [location](#location)（[匹配规则](./location.md)
     - [try_files](#try_files)
     - [多份 server](#多份-server)
 
@@ -109,7 +109,7 @@
 
 ## Nginx 常用配置
 
-Nginx 只作为一个 **静态 Web 服务器** 来说，要配置的内容真的非常少。本章先把这一块吃透。其余按优先级陆续开子篇（做成链接的就是已经写完的）：location 匹配规则、静态资源服务、反向代理、gzip 压缩、缓存、HTTPS / TLS、重写与跳转、日志、WebSocket、HTTP/2 与 HTTP/3、访问控制、负载均衡。
+Nginx 只作为一个 **静态 Web 服务器** 来说，要配置的内容真的非常少。本章先把这一块吃透。其余按优先级陆续开子篇（做成链接的就是已经写完的）：[location 匹配规则](./location.md)、静态资源服务、反向代理、gzip 压缩、缓存、HTTPS / TLS、重写与跳转、日志、WebSocket、HTTP/2 与 HTTP/3、访问控制、负载均衡。
 
 ### 配置文件在哪里
 
@@ -201,7 +201,7 @@ Nginx Worker 的进程数量。生产上一般写成 `auto`，让它按 CPU 核�
 
 #### location
 
-匹配路由。这个规则比较多，会专门写一个子篇来说明。
+匹配路由。规则比较多，单独写在 [location 匹配规则](./location.md)。
 
 #### try_files
 
