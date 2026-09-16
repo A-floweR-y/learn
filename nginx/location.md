@@ -28,6 +28,9 @@
     - [测试](#测试)
     - [答案](#答案)
 - [嵌套 location](#嵌套-location)
+  - [嵌套是什么](#嵌套是什么)
+  - [匹配分两步走](#匹配分两步走)
+  - [实战，让你更深刻](#实战让你更深刻)
 
 ---
 
@@ -369,7 +372,7 @@ location / {
 
 #### location 匹配流程图
 
-这篇里的图是教学用的收束，和上面逐步推出的顺序一致。需要单独打开、对照五种写法时，看 [location 匹配流程图](./location-flow.md)。
+这里的图是前面内容的总结，和上面一步步推出来的顺序一致。想单独打开、对照五种写法看，可以去 [location 匹配流程图](./location-flow.md)。
 
 ```text
                     收到请求
@@ -565,6 +568,477 @@ http {
 ---
 
 ## 嵌套 location
+
+### 嵌套是什么
+
+```nginx
+events {}
+
+http {
+    server {
+        listen 8080;
+
+        # Level 1
+        location / {
+
+            add_header X-Location "L1-root" always;
+            add_header X-Level "1" always;
+
+            return 200 "LEVEL 1 ROOT\n";
+
+            # Level 2
+            location /api/ {
+
+                add_header X-Location "L2-api" always;
+                add_header X-Level "2" always;
+
+                return 200 "LEVEL 2 API\n";
+
+                # Level 3
+                location /api/user/ {
+
+                    add_header X-Location "L3-user" always;
+                    add_header X-Level "3" always;
+
+                    return 200 "LEVEL 3 USER\n";
+                }
+            }
+        }
+    }
+}
+```
+上面就是个嵌套 location 的例子：`location` 里面还能再写 `location`。这里一共三层：写在 `server` 里的是第 1 层，写在 `location /` 里的是第 2 层，写在 `location /api/` 里的是第 3 层。
+
+测试结果：
+
+1. `curl -i http://localhost:8080/test` → `X-Location: L1-root`
+2. `curl -i http://localhost:8080/api/test` → `X-Location: L2-api`
+3. `curl -i http://localhost:8080/api/user/test` → `X-Location: L3-user`
+
+这三条结果，跟把三个 `location` 平着写没什么区别。所以先记住嵌套真正的那条规则：**子 location 只有在父 location 被选中之后，才参与匹配。** 父级没被选中，它里面写了什么都不会被看到。
+
+**实验：父级没被选中，子块就等于不存在**
+
+```nginx
+events {}
+
+http {
+    server {
+        listen 8080;
+
+        location /a/ {
+            add_header X-Location "a-prefix" always;
+            return 200 "A PREFIX\n";
+
+            location ~ \.txt$ {
+                add_header X-Location "a-txt-regex" always;
+                return 200 "A TXT REGEX\n";
+            }
+        }
+
+        location /b/ {
+            add_header X-Location "b-prefix" always;
+            return 200 "B PREFIX\n";
+        }
+    }
+}
+```
+
+测试结果：
+
+1. `curl -i http://localhost:8080/a/note.txt` → `X-Location: a-txt-regex`
+2. `curl -i http://localhost:8080/b/note.txt` → `X-Location: b-prefix`。同样是 `.txt`，这次那条正则压根没参与——它长在 `/a/` 里面，而这次被选中的是 `/b/`。
+
+### 匹配分两步走
+
+嵌套没有新规则，前面学的那套（精确匹配最优先、前缀取最长、正则按书写顺序）在每一层都照用。要想清楚的只是 Nginx 在层与层之间怎么走：**寻找前缀匹配从外往里，寻找正则匹配从里往外**。
+
+**第一步：从外往里，找最长前缀**
+
+1. 在当前这一层，先看有没有 `=` 精确匹配。有就直接命中，整个查找结束。
+2. 没有，就在这一层挑最长前缀（包含：普通前缀和 `^~` 前缀）。
+3. 挑中的最长前缀里面还有子 location，就走进去，把 1 ~ 3 步骤重新来一遍。
+4. 遇到下面两种情况，就走到头了，停下来不再往里找：这一层一条前缀都挑不到，那就退回去，父级是最长前缀；挑中的最长前缀里面没有子 location，那它就是最长前缀。
+
+**第二步：从里往外，找正则**
+
+5. 最长前缀里面有子 location，先查这些子 location 里的正则，命中就结束。
+6. 没有子 location，或者里面的正则都没命中，就来到最长前缀的同级那一层。
+7. 这一层选中的前缀带 `^~`，跳过这一层的正则，然后退到外面一层继续找；不带，就按书写顺序查，第一条命中的胜出。
+8. 还没命中就退到外面一层，重复第 7 步，一直退到 `server` 层。
+9. 一路都没有正则命中，就用**第一步**找到的那条最长前缀。
+
+画成一张图就是。
+
+```text
+                      收到请求
+                         │
+                         ▼
+═════════════ 第一步：先逐步向内找最长前缀 ═════════════
+
+             本层有 = 精确匹配吗？
+               ├─ 有 ──▶ 直接命中，整个查找结束 ✔
+               └─ 没有 ─▶ 在本层挑最长前缀
+                            │
+                ┌───────────┴───────────┐
+             没挑到                    挑到了
+                │                        │
+                ▼                        ▼
+         父级就是最长前缀      它里面还有子 location 吗？
+                │              ├─ 有 ──▶ 进入这一层，回到第一步开头
+                │              └─ 没有 ─▶ 它就是最长前缀
+                └───────────┬───────────┘
+                            ▼
+════════════════ 第二步：逐步向外找正则 ════════════════
+
+          最长前缀里面有子 location 吗？
+            ├─ 有 ──▶ 先查这些子 location 里的正则
+            │           ├─ 命中 ───▶ 用这条正则 ✔（结束）
+            │           └─ 没命中 ─┐
+            └─ 没有 ───────────────┤
+                                   ▼
+                      来到最长前缀的同级那一层
+                                   │
+                                   ▼
+          【查本层正则】这层选中的前缀带 ^~ 吗？
+                       ├─ 带 ───▶ 跳过这层的正则，往外继续找 ┐
+                       └─ 不带 ─▶ 按书写顺序查这层的正则     │
+                                   ├─ 命中 ──▶ 用这条正则 ✔（结束）
+                                   └─ 没命中 ───────────────┤
+                                                         ▼
+                                                 外面还有层吗？
+                                                   ├─ 有 ──▶ 退到外面一层，回到【查本层正则】
+                                                   └─ 没有 ─▶ 用最长前缀 ✔（结束）
+```
+
+有没有发现，它非常像洋葱皮模型。
+
+### 实战，让你更深刻
+
+没有什么比实战更能加深印象。下面用几道题，把查找的步骤一步一步走一遍。
+
+> 下面这份 Nginx 配置里，每条 `location` 都标了它在第几层。后面讲步骤时说的「第几层」，就是这里的标注。
+
+```nginx
+events {}
+
+http {
+    server {
+        listen 8080;
+
+        # 第 1 层（写在 server 里）
+        location = / {
+            return 200 "EXACT-ROOT\n";
+        }
+
+        # 第 1 层
+        location / {
+
+            # 第 2 层（写在 location / 里）
+            location /api/ {
+
+                # 第 3 层（写在 location /api/ 里）
+                location /api/user/ {
+
+                    # 第 4 层（写在 location /api/user/ 里）
+                    location ^~ /api/user/admin/ {
+                        return 200 "USER-ADMIN\n";
+                    }
+
+                    # 第 4 层
+                    location ~ \.php$ {
+                        return 200 "USER-PHP\n";
+                    }
+
+                    return 200 "USER\n";
+                }
+
+                # 第 3 层
+                location ^~ /api/static/ {
+                    return 200 "API-STATIC\n";
+                }
+
+                # 第 3 层
+                location ~ \.json$ {
+                    return 200 "API-JSON\n";
+                }
+
+                # 第 3 层
+                location ~* \.html$ {
+                    return 200 "API-HTML\n";
+                }
+
+                return 200 "API\n";
+            }
+
+            # 第 2 层
+            location /images/ {
+
+                # 第 3 层（写在 location /images/ 里）
+                location /images/special/ {
+                    return 200 "SPECIAL-IMAGES\n";
+                }
+
+                # 第 3 层
+                location ~ \.jpg$ {
+                    return 200 "IMAGES-JPG\n";
+                }
+
+                return 200 "IMAGES\n";
+            }
+
+            # 第 2 层
+            location ^~ /static/ {
+
+                # 第 3 层（写在 location ^~ /static/ 里）
+                location /static/css/ {
+                    return 200 "STATIC-CSS\n";
+                }
+
+                # 第 3 层
+                location ~ \.js$ {
+                    return 200 "STATIC-JS\n";
+                }
+
+                return 200 "STATIC\n";
+            }
+
+            # 第 2 层
+            location ~ \.php$ {
+                return 200 "ROOT-PHP\n";
+            }
+
+            # 第 2 层
+            location ~* \.(png|gif)$ {
+                return 200 "ROOT-IMAGE\n";
+            }
+
+            return 200 "ROOT\n";
+        }
+    }
+}
+```
+
+层级速查表，推演的时候可以对着看：
+
+| 层级 | 写在哪里 | 这一层有哪些 location |
+| --- | --- | --- |
+| 第 1 层 | `server` 里 | `= /`、`/` |
+| 第 2 层 | `location /` 里 | `/api/`、`/images/`、`^~ /static/`、`~ \.php$`、`~* \.(png\|gif)$` |
+| 第 3 层 | `location /api/` 里 | `/api/user/`、`^~ /api/static/`、`~ \.json$`、`~* \.html$` |
+| 第 3 层 | `location /images/` 里 | `/images/special/`、`~ \.jpg$` |
+| 第 3 层 | `location ^~ /static/` 里 | `/static/css/`、`~ \.js$` |
+| 第 4 层 | `location /api/user/` 里 | `^~ /api/user/admin/`、`~ \.php$` |
+
+下面 23 道题，配置里每一个 `return` 都至少会被命中一次。建议先自己推一遍再看答案。
+
+**1. `curl http://localhost:8080/`** → `EXACT-ROOT`
+
+- URI 是 `/`。
+- 第 1 层就有 `= /`，精确匹配直接命中，后面一律不看。
+
+**2. `curl http://localhost:8080/hello`** → `ROOT`
+
+- URI 是 `/hello`。
+- 第 1 层 `= /` 不相等，前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层 `/api/`、`/images/`、`^~ /static/` 都对不上，最长前缀就是 `/`。开始正则匹配。
+- 第 2 层：`~ \.php$`、`~* \.(png|gif)$` 都不匹配，继续往外层找正则，回到第 1 层。
+- 第 1 层：没写正则。全程没有正则命中，用最长前缀 `/`。
+
+**3. `curl http://localhost:8080/api/test`** → `API`
+
+- URI 是 `/api/test`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`；有子 location，进入第 3 层。
+- 第 3 层 `/api/user/`、`^~ /api/static/` 都对不上，所以最长前缀是父级 `/api/`。开始正则匹配。
+- 第 3 层：`~ \.json$`、`~* \.html$` 不中。继续往外层找正则，回到第 2 层。
+- 第 2 层：两条正则不中。继续往外层找正则，回到第 1 层。
+- 第 1 层：没正则。用最长前缀 `/api/`。
+
+**4. `curl http://localhost:8080/api/user/profile`** → `USER`
+
+- URI 是 `/api/user/profile`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层选中 `/api/user/`，有子 location，进入第 4 层。
+- 第 4 层 `^~ /api/user/admin/` 对不上，所以最长前缀是父级 `/api/user/`。开始正则匹配。
+- 第 4 层：`~ \.php$` 不中。继续往外层找正则，回到第 3 层。
+- 第 3 层：`~ \.json$`、`~* \.html$` 不中。继续往外层找正则，回到第 2 层。
+- 第 2 层：`~ \.php$`、`~* \.(png|gif)$` 不中。继续往外层找正则，回到第 1 层。
+- 第 1 层：没写正则。全程没有正则命中，用最长前缀 `/api/user/`。
+
+**5. `curl http://localhost:8080/api/user/profile.json`** → `API-JSON`
+
+- URI 是 `/api/user/profile.json`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层选中 `/api/user/`，有子 location，进入第 4 层。
+- 第 4 层 `^~ /api/user/admin/` 对不上，所以最长前缀是父级 `/api/user/`。开始正则匹配。
+- 第 4 层：`~ \.php$` 不中。继续往外层找正则，回到第 3 层。
+- 第 3 层：`/api/user/` 不带 `^~`，按书写顺序查正则，`~ \.json$` 命中。
+
+**6. `curl http://localhost:8080/api/user/profile.php`** → `USER-PHP`
+
+- URI 是 `/api/user/profile.php`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层选中 `/api/user/`，有子 location，进入第 4 层。
+- 第 4 层 `^~ /api/user/admin/` 对不上，所以最长前缀是父级 `/api/user/`。开始正则匹配。
+- 第 4 层：`~ \.php$` 命中。第 2 层也有一条 `~ \.php$`，但里层先被查到，轮不到它。
+
+**7. `curl http://localhost:8080/api/static/app.js`** → `API-STATIC`
+
+- URI 是 `/api/static/app.js`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层 `^~ /api/static/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 3 层：选中的前缀带 `^~`，跳过这层的正则，继续往外层找正则，回到第 2 层。
+- 第 2 层：`~ \.php$`、`~* \.(png|gif)$` 不中。继续往外层找正则，回到第 1 层。
+- 第 1 层：没写正则。全程没有正则命中，用最长前缀 `^~ /api/static/`。
+
+**8. `curl http://localhost:8080/api/static/app.php`** → `ROOT-PHP`
+
+- URI 是 `/api/static/app.php`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层 `^~ /api/static/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 3 层：选中的前缀带 `^~`，跳过这层的正则，继续往外层找正则，回到第 2 层。
+- 第 2 层：`~ \.php$` 命中。`^~` 只挡住了自己那一层，外层的正则照样把请求抢走了。
+
+**9. `curl http://localhost:8080/api/user/admin/index.php`** → `ROOT-PHP`
+
+- URI 是 `/api/user/admin/index.php`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层选中 `/api/user/`，有子 location，进入第 4 层。
+- 第 4 层 `^~ /api/user/admin/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 4 层：选中的前缀带 `^~`，跳过这层的正则（同层那条 `~ \.php$` 根本没被查），继续往外层找正则，回到第 3 层。
+- 第 3 层：`~ \.json$`、`~* \.html$` 不中。继续往外层找正则，回到第 2 层。
+- 第 2 层：`~ \.php$` 命中。
+
+**10. `curl http://localhost:8080/api/user/admin/list`** → `USER-ADMIN`
+
+- URI 是 `/api/user/admin/list`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层选中 `/api/user/`，有子 location，进入第 4 层。
+- 第 4 层 `^~ /api/user/admin/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 4 层：选中的前缀带 `^~`，跳过这层的正则，继续往外层找正则，回到第 3 层。
+- 第 3 层：`~ \.json$`、`~* \.html$` 不中。继续往外层找正则，回到第 2 层。
+- 第 2 层：`~ \.php$`、`~* \.(png|gif)$` 不中。继续往外层找正则，回到第 1 层。
+- 第 1 层：没写正则。全程没有正则命中，用最长前缀 `^~ /api/user/admin/`。跟第 9 题就差一个 `.php` 后缀。
+
+**11. `curl http://localhost:8080/images/cat.jpg`** → `IMAGES-JPG`
+
+- URI 是 `/images/cat.jpg`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/images/`，有子 location，进入第 3 层。
+- 第 3 层 `/images/special/` 对不上，所以最长前缀是父级 `/images/`。开始正则匹配。
+- 第 3 层：`~ \.jpg$` 命中。
+
+**12. `curl http://localhost:8080/images/special/cat.jpg`** → `IMAGES-JPG`
+
+- URI 是 `/images/special/cat.jpg`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/images/`，有子 location，进入第 3 层。
+- 第 3 层 `/images/special/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 3 层：选中的 `/images/special/` 不带 `^~`，`~ \.jpg$` 命中。
+
+**13. `curl http://localhost:8080/images/special/cat.php`** → `ROOT-PHP`
+
+- URI 是 `/images/special/cat.php`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/images/`，有子 location，进入第 3 层。
+- 第 3 层 `/images/special/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 3 层：`~ \.jpg$` 不中。继续往外层找正则，回到第 2 层。
+- 第 2 层：`~ \.php$` 命中。
+
+**14. `curl http://localhost:8080/images/special/readme.txt`** → `SPECIAL-IMAGES`
+
+- URI 是 `/images/special/readme.txt`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/images/`，有子 location，进入第 3 层。
+- 第 3 层 `/images/special/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 3 层：`~ \.jpg$` 不中。继续往外层找正则，回到第 2 层。
+- 第 2 层：`~ \.php$`、`~* \.(png|gif)$` 不中。继续往外层找正则，回到第 1 层。
+- 第 1 层：没写正则。全程没有正则命中，用最长前缀 `/images/special/`。
+
+**15. `curl http://localhost:8080/static/app.js`** → `STATIC-JS`
+
+- URI 是 `/static/app.js`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层 `^~ /static/` 对得上且最长，有子 location，进入第 3 层。
+- 第 3 层 `/static/css/` 对不上，所以最长前缀是父级 `^~ /static/`。开始正则匹配。
+- 第 3 层：`~ \.js$` 命中。`^~` 不挡自己里面的正则。
+
+**16. `curl http://localhost:8080/static/css/app.js`** → `STATIC-JS`
+
+- URI 是 `/static/css/app.js`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `^~ /static/`，有子 location，进入第 3 层。
+- 第 3 层 `/static/css/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 3 层：选中的 `/static/css/` 不带 `^~`，`~ \.js$` 命中。
+
+**17. `curl http://localhost:8080/static/css/main.css`** → `STATIC-CSS`
+
+- URI 是 `/static/css/main.css`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `^~ /static/`，有子 location，进入第 3 层。
+- 第 3 层 `/static/css/` 对得上且最长，没有子 location，最长前缀就是它。开始正则匹配。
+- 第 3 层：`~ \.js$` 不中。继续往外层找正则，回到第 2 层。
+- 第 2 层：选中的前缀是 `^~ /static/`，带 `^~`，跳过这层的正则，继续往外层找正则，回到第 1 层。最长前缀自己并不带 `^~`，是退到这一层时才被挡住的。
+- 第 1 层：没写正则。全程没有正则命中，用最长前缀 `/static/css/`。
+
+**18. `curl http://localhost:8080/static/app.php`** → `STATIC`
+
+- URI 是 `/static/app.php`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层 `^~ /static/` 对得上且最长，有子 location，进入第 3 层。
+- 第 3 层 `/static/css/` 对不上，所以最长前缀是父级 `^~ /static/`。开始正则匹配。
+- 第 3 层：`~ \.js$` 不中。继续往外层找正则，回到第 2 层。
+- 第 2 层：选中的前缀正是 `^~ /static/`，带 `^~`，跳过这层的正则（`~ \.php$` 不查），继续往外层找正则，回到第 1 层。跟第 8 题对着看：那次 `^~` 在第 3 层，挡不住第 2 层的 `~ \.php$`；这次 `^~` 就在第 2 层，正好把它挡住。
+- 第 1 层：没写正则。全程没有正则命中，用最长前缀 `^~ /static/`。
+
+**19. `curl http://localhost:8080/test.HTML`** → `ROOT`
+
+- URI 是 `/test.HTML`。
+- 第 1 层 `= /` 不相等，前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层 `/api/`、`/images/`、`^~ /static/` 都对不上，最长前缀就是 `/`。开始正则匹配。
+- 第 2 层：`~ \.php$`、`~* \.(png|gif)$` 都不匹配，继续往外层找正则，回到第 1 层。
+- 第 1 层：没写正则。全程没有正则命中，用最长前缀 `/`。那条能接住 `.HTML` 的 `~* \.html$` 写在第 3 层的 `/api/` 里，这次压根没走进去。
+
+**20. `curl http://localhost:8080/test.png`** → `ROOT-IMAGE`
+
+- URI 是 `/test.png`。
+- 第 1 层 `= /` 不相等，前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层 `/api/`、`/images/`、`^~ /static/` 都对不上，最长前缀就是 `/`。开始正则匹配。
+- 第 2 层：按书写顺序，`~ \.php$` 不中，`~* \.(png|gif)$` 命中。
+
+**21. `curl http://localhost:8080/test.php`** → `ROOT-PHP`
+
+- URI 是 `/test.php`。
+- 第 1 层 `= /` 不相等，前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层 `/api/`、`/images/`、`^~ /static/` 都对不上，最长前缀就是 `/`。开始正则匹配。
+- 第 2 层：`~ \.php$` 命中。
+
+**22. `curl http://localhost:8080/api/user/test.html`** → `API-HTML`
+
+- URI 是 `/api/user/test.html`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层选中 `/api/user/`，有子 location，进入第 4 层。
+- 第 4 层 `^~ /api/user/admin/` 对不上，所以最长前缀是父级 `/api/user/`。开始正则匹配。
+- 第 4 层：`~ \.php$` 不中。继续往外层找正则，回到第 3 层。
+- 第 3 层：按书写顺序 `~ \.json$` 不中，`~* \.html$` 命中。
+
+**23. `curl http://localhost:8080/api/user/test.php`** → `USER-PHP`
+
+- URI 是 `/api/user/test.php`。
+- 第 1 层前缀选中 `/`，有子 location，进入第 2 层。
+- 第 2 层选中 `/api/`，有子 location，进入第 3 层。
+- 第 3 层选中 `/api/user/`，有子 location，进入第 4 层。
+- 第 4 层 `^~ /api/user/admin/` 对不上，所以最长前缀是父级 `/api/user/`。开始正则匹配。
+- 第 4 层：`~ \.php$` 命中。跟第 22 题对着看：同一个最长前缀，`.html` 要退到第 3 层才被接住，`.php` 在第 4 层就被接走了。
 
 ---
 
