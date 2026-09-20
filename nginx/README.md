@@ -18,9 +18,8 @@
     - [access_log 与 error_log](#access_log-与-error_log)
     - [listen](#listen)
     - [server_name](#server_name)
-    - [root](#root)
     - [index](#index)
-    - [location](#location)（[匹配规则](./location.md)
+    - [location](#location)
     - [try_files](#try_files)
     - [多份 server](#多份-server)
 
@@ -109,7 +108,7 @@
 
 ## Nginx 常用配置
 
-Nginx 只作为一个 **静态 Web 服务器** 来说，要配置的内容真的非常少。本章先把这一块吃透。其余按优先级陆续开子篇（做成链接的就是已经写完的）：[location 匹配规则](./location.md)、静态资源服务、反向代理、gzip 压缩、缓存、HTTPS / TLS、重写与跳转、日志、WebSocket、HTTP/2 与 HTTP/3、访问控制、负载均衡。
+Nginx 只作为一个 **静态 Web 服务器** 来说，要配置的内容真的非常少。本章先把这一块吃透。其余按优先级陆续开子篇（做成链接的就是已经写完的）：[location 匹配规则](./location.md)、[静态文件服务器](./static-file-server.md)、反向代理、gzip 压缩、缓存、HTTPS / TLS、重写与跳转、日志、WebSocket、HTTP/2 与 HTTP/3、访问控制、负载均衡。
 
 ### 配置文件在哪里
 
