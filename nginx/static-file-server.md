@@ -115,6 +115,98 @@ http {
 
 ### alias
 
+| 作用 | 是否支持继承 | 支持设置的层级 |
+| -- | -- | -- |
+| 把 `location` 匹配到的前缀，换成另一段磁盘路径 | **No** | `location` |
+
+其实可以把 alias 理解成跟 root 同样的作用：指定一个路径 + 请求路径 = 最终文件地址。这也是把他们写在一起的原因。
+
+但是他们的不同点在于计算最终文件地址公式上。而且 alias 对于 **前缀匹配**和**正则匹配** 计算方式还不一样。
+
+## 前缀匹配
+
+| root | alias |
+| -- | -- |
+| 永远都是 root + URI | alias + (URI - location) |
+
+Nginx 如下：
+
+```nginx
+http {
+    server {
+        listen 8080;
+
+        # root
+        location /images/ {
+            root dist; 
+        }
+
+        # alias
+        location /static/ {
+            alias dist/assets/
+        }
+    }
+}
+```
+
+当我们请求 `curl -i http://localhost:8080/images/cat.jpg`，走 `root location`。最终我们的文件地址是：`dist` + `/images/cat.jpg` = `dist/images/cat.jpg`。
+
+当我们请求 `curl -i http://localhost:8080/static/cat.jpg`，走 `alias location`。最终我们的文件地址是：`dist/assets/` + (`/static/cat.jpg` - `/static/`) = `dist/assets/cat.jpg`。
+
+你也可以理解成：用 `alias` 替换 `location` 匹配的那一部分 `URI`。
+
+### 注意小坑
+
+因为这里是字符串拼接，所以就要注意尾部 `/`。尽量 location 以 `/` 结束，alias 也就同样用 `/` 结尾。
+
+假如我们的 Nginx 配置：
+
+```nginx
+http {
+    server {
+        listen 8080;
+
+        location /static/ {
+            alias dist/assets;  # 少了末尾 /
+        }
+    }
+}
+```
+
+请求 `GET /static/cat.jpg`。最终找到的文件路径就是：`dist/assets` + (`/static/cat.jpg` - `/static/`) = `dist/assetscat.jpg`。
+
+中间少了一条斜杠，文件名被粘在目录名后面。所以 `location` 以 `/` 结尾时，`alias` 也要以 `/` 结尾。
+
+## 正则匹配
+
+我们先看一个正则匹配的例子：
+
+```nginx
+http {
+    server {
+        listen 8080;
+        location ~ (.*)\.(jpg|jpeg|png|webp|gif)$/ {
+        }
+    }
+}
+```
+
+上面是一个匹配图片请求的 location，我们请求 `GET /static/cat.jpg`。我们会发现 location 基本上就跟 URI 是完全对应的，我们无法找出多余的那部分内容来。
+
+所以，这里有个重要结论：**正则 location 使用 alias 时，需要捕获组来完成替换**。比如：
+
+```nginx
+http {
+    server {
+        listen 8080;
+        location ~ ^static/(.*)\.(jpg|jpeg|png|webp|gif)$/ {
+            alias dist/assets/$1.$2;
+        }
+    }
+}
+```
+
+
 ### index
 
 | 作用 | 是否支持继承 | 支持设置的层级 |
@@ -211,5 +303,19 @@ http {
   - 不是。当前的 $uri 是目录吗？
     - 是。返回目录下面的 index.html
     - 不是。那就返回 404
+
+#### 前端 SPA 经典配置
+
+所以，对于前端的 SPA 页面，最经典的配置就是：
+
+```nginx
+location / {
+    root dist;
+    try_files $uri $uri/ /index.html;
+}
+```
+
+因为是前端接管路由，服务器并没有对应的文件。但是静态文件依旧读服务器内容。
+
 
 > `$uri` 是 Nginx 的内置变量：当前请求规范化后的 path，不含 `host`、`query`、`hash`。详见 [Nginx 常用变量](./variables.md)。
