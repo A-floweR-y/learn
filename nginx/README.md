@@ -108,7 +108,7 @@
 
 ## Nginx 常用配置
 
-Nginx 只作为一个 **静态 Web 服务器** 来说，要配置的内容真的非常少。本章先把这一块吃透。其余按优先级陆续开子篇（做成链接的就是已经写完的）：[location 匹配规则](./location.md)、[静态文件服务器](./static-file-server.md)、反向代理、gzip 压缩、缓存、HTTPS / TLS、重写与跳转、日志、WebSocket、HTTP/2 与 HTTP/3、访问控制、负载均衡。
+Nginx 只作为一个 **静态 Web 服务器** 来说，要配置的内容真的非常少。本章先把这一块吃透。其余按优先级陆续开子篇（做成链接的就是已经写完的）：[location 匹配规则](./location.md)、[静态文件服务器](./static-file-server.md)、[常用变量](./variables.md)、反向代理、gzip 压缩、缓存、HTTPS / TLS、重写与跳转、日志、WebSocket、HTTP/2 与 HTTP/3、访问控制、负载均衡。
 
 ### 配置文件在哪里
 
@@ -206,7 +206,7 @@ Nginx Worker 的进程数量。生产上一般写成 `auto`，让它按 CPU 核�
 
 写在 `location` 里。路由匹配成功后，按从左到右尝试找文件。例如 `$uri` 先当文件，`$uri/` 再当目录（这时才会用到 `index`）。最后一个参数比较特殊：写成 `=404` 就是直接回这个状态码；等号和状态码之间不能有空格，解析器按空格拆参数，`=404` 要当成一个词。如果最后一项不是 `=状态码` 而是一个 URI，会变成内部跳转，那是后话。
 
-`$uri` 是当前请求的路径（规范化后的 `path`），不含 `host`、`query`、`hash`。带查询串的原始地址看 `$request_uri`。
+`$uri` 是当前请求的路径（规范化后的 `path`），不含 `host`、`query`、`hash`。带查询串的原始地址看 `$request_uri`。变量单独写在 [Nginx 常用变量](./variables.md)。
 
 #### 多份 server
 

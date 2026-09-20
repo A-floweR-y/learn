@@ -17,6 +17,7 @@
     - [location 匹配规则](./nginx/location.md) - 请求落到哪一条 location
     - [location 匹配流程图](./nginx/location-flow.md) - 五种写法怎么走完一轮
     - [嵌套 location 匹配流程图](./nginx/location-nested-flow.md) - 前缀往里、正则往外
+    - [Nginx 常用变量](./nginx/variables.md) - `$uri` 这些内置变量是什么
     - [静态文件服务器](./nginx/static-file-server.md) - root 怎么把 URL 变成磁盘路径
 
 ## 未至
