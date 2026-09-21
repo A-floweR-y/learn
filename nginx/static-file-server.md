@@ -509,15 +509,17 @@ location /static/ {
 | -- | -- |
 | `no-cache` | 协商缓存。就是可以缓存，但每次用之前必须先向服务器先验证。 |
 | `no-store` | 不允许缓存 |
-| 不设置任何值 | 本地缓存。后续请求资源直接读取缓存，不再发起任何请求 |
+| 不设置任何值 | 本地缓存（强缓存）。后续请求资源直接读取缓存，不再发起任何请求 |
 
-像服务器验证时：
+##### 协商缓存
+
+向服务器验证时：
 - 文件没有改变，服务器返回 HTTP Code：304 Not Modified。Response 没有任何内容。
 - 文件发生变化，服务器返回 HTTP Code：200。Response 是最新的文件内容。
 
-如果不设置值，走直接缓存逻辑。后续不再发起请求。**当本地缓存过期时还是会发起一次协商缓存**。协商缓存结果：
+如果不设置值，走直接缓存逻辑。后续不再发起请求。**当本地缓存（强缓存）过期时还是会发起一次协商缓存**。协商缓存结果：
 - 文件没有变化。这个文件自动再按 `max-age` 进行续期，过期前不再发起请求。
-- 文件有变化。返回新的内容，再次进行本地缓存。
+- 文件有变化。返回新的内容，再次进行本地缓存（强缓存）。
 
 ##### 刷新是否读取缓存
 
@@ -595,6 +597,43 @@ Cache-Control: public, immutable
 
 因为我们并不能确定在不同的中间层面对 2 个同样的 Cache-Control 时会如何处理，所以最好要控制 Cache-Control 时就直接用 `add_header Cache-Control`。
 
-### etag
+### etag & if_modified_since
 
-### if_modified_since
+Nginx 中 `etag` 默认值就是 `on`，`if_modified_since` 默认值是 `exact`。所以这两个是不用设置的。
+
+他们2个的功能分别对应 2 个相应头：Etag 和 Last-Modified。例如：
+
+```http
+Etag: "6aa7fa3a-37edb"
+Last-Modified: Mon, 14 Sep 2026 13:44:26 GMT
+```
+
+前面我们说过，[协商缓存](#协商缓存)会向服务进行一次文件的验证，来判断文件是否有变更。那根据什么信息来判断文件是否有变更呢？就是根据响应头 Etag 或者 Last-Modified。
+
+#### 响应头 Etag
+
+Etag 是 Nginx 给文件设置的一个唯一标识。你看这个值像不像一个 `hash` 值。难道每次请求 Nginx 都要对文件内容做一次 hash 运算？这显然太耗时了。所以 Etag 的值是有两部分组成的：`最后修改时间` + `文件 size`。这样显然比 hash 运算更省事，虽然它不是百分百严谨，不过也绝对够用了。
+
+#### 响应头 Last-Modified
+
+Last-Modified 是 Nginx 上文件的最后修改时间。如果上传了新的文件，那这个时间就会更新，即使文件的内容一样。
+
+#### Etag 和 Last-Modified 的优先级
+
+Etag 的优先级是高于 Last-Modified 的，因为它能表达的内容更丰富预 Etag。所以当这两个同时存在时。只有 Etag 会生效。
+
+#### 协商缓存如何验证文件是否有效
+
+当浏览器发起对文件的有效性验证请求时，Request Headers 里面会增加两个请求头：
+
+```http
+If-Modified-Since: Mon, 14 Sep 2026 13:44:26 GMT
+If-None-Match: "6aa7fa3a-37edb"
+```
+
+- If-Modified-Since 对应的本地缓存文件的 Last-Modified 的值。
+- If-None-Match 对应的本地缓存文件的 Etag 的值。
+
+Nginx 就会根据这两个的值来判断本地缓存的文件是否已过期，如果没有过期就返回 `304 Not Modified`，没有 Response。如果过期了，就返回 `200`，Response 是最新的内容。
+
+不管是否过期，Response Headers 里面都会返回响应头 Etag 和 Last-Modified。
