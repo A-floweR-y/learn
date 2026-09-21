@@ -447,6 +447,29 @@ HTTP 静态资源缓存主要是靠 Response Headers 来返回不同的值来设
 | -- | -- | -- |
 | 添加响应头 | **Yes** | `http` `server` `location` `if in location` |
 
+`add_header` 就是让 Nginx 在符合条件的 HTTP 响应中增加一个响应头。比如：
+
+```nginx
+server {
+    listen 8080;
+
+    location / {
+        root ./html;
+        add_header X-Test "hello";
+    }
+}
+```
+
+请求 `curl -i http://localhost:8080/index.html` 就可以看到：
+
+```http
+HTTP/1.1 200 OK
+Server: nginx
+Content-Type: text/html
+Content-Length: 123
+X-Test: hello
+```
+
 `add_header` 是可以写多条的，也就是指定多个响应头。但是有一条需要说明一下。
 指令那一小节说过继承的原则：**子层没写，就用父层的值。子层写了，就不再用父层的值**。
 对于 `add_header` 来说，只有子层没有写，就继承父层的值。但只要**子层写了1个，即使跟父级设置的 header 头不冲突，也不再继承父层的 `add_header` 了**。
@@ -571,3 +594,7 @@ Cache-Control: public, immutable
 ```
 
 因为我们并不能确定在不同的中间层面对 2 个同样的 Cache-Control 时会如何处理，所以最好要控制 Cache-Control 时就直接用 `add_header Cache-Control`。
+
+### etag
+
+### if_modified_since
