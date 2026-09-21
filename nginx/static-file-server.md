@@ -222,7 +222,7 @@ http {
 http {
     server {
         listen 8080;
-        location ~ (.*)\.(jpg|jpeg|png|webp|gif)$/ {
+        location ~ \.(jpg|jpeg|png|webp|gif)$ {
         }
     }
 }
@@ -236,7 +236,7 @@ http {
 http {
     server {
         listen 8080;
-        location ~ ^static/(.*)\.(jpg|jpeg|png|webp|gif)$/ {
+        location ~ ^/static/(.*)\.(jpg|jpeg|png|webp|gif)$ {
             alias dist/assets/$1.$2;
         }
     }
@@ -257,7 +257,7 @@ http {
 
 index 是可以指定多个的，比如：`index index.html index.htm default.html;` 
 
-它的意思是：依次寻找这几个文件，直到找到存在的那个文件。如果都没有就返回 404。
+它的意思是：依次寻找这几个文件，直到找到存在的那个文件。
 
 ### try_files
 
@@ -375,7 +375,7 @@ Nginx 作为静态文件服务器时，每次处理静态文件，都需要和�
 
 | 作用 | 是否支持继承 | 支持设置的层级 |
 | -- | -- | -- |
-| 缓存已打开文件的信息（描述符、大小、修改时间、是否存在、文件查找错误） | **Yes** | `http` `server` `location` |
+| 缓存已打开文件的信息（描述符、大小、修改时间、是否存在；查找错误要另开 `open_file_cache_errors`） | **Yes** | `http` `server` `location` |
 
 官方默认是 `open_file_cache off;`。
 
@@ -419,8 +419,8 @@ Nginx 作为静态文件服务器时，每次处理静态文件，都需要和�
 
 | 参数名称 | 参数作用 |
 | -- | -- |
-| `off` | 开启文件查找错误缓存 |
-| `on` | 关闭文件查找错误缓存 |
+| `off` | 不缓存文件查找错误 |
+| `on` | 查找失败（比如没有这个文件）也缓存 |
 
 ### Nginx 发送文件
 
@@ -432,7 +432,7 @@ Nginx 作为静态文件服务器时，每次处理静态文件，都需要和�
 | -- | -- | -- |
 | 用内核 `sendfile` 把文件直接发到 socket，少一次用户态拷贝 | **Yes** | `http` `server` `location` |
 
-官方默认是 `sendfile off;`。会尝试使用操作系统的 `sendfile()`。不用管那么多，知道快就行了。
+官方默认是 `sendfile off;`。写成 `on` 之后，才会用操作系统的 `sendfile()`。不用管那么多，知道快就行了。
 
 **参数介绍**：
 
@@ -516,6 +516,8 @@ X-Test: hello
 指令那一小节说过继承的原则：**子层没写，就用父层的值。子层写了，就不再用父层的值**。
 对于 `add_header` 来说，只有子层没有写，就继承父层的值。但只要**子层写了1个，即使跟父级设置的 header 头不冲突，也不再继承父层的 `add_header` 了**。
 
+还有一个小坑：默认只给部分成功/跳转的状态码加头（200、301、304 这类）。**404 默认加不上**。希望出错时也带上，要写成 `add_header ... always;`。
+
 #### Cache-Control
 
 ```nginx
@@ -551,15 +553,15 @@ location /static/ {
 | -- | -- |
 | `no-cache` | 协商缓存。就是可以缓存，但每次用之前必须先向服务器先验证。 |
 | `no-store` | 不允许缓存 |
-| 不设置任何值 | 本地缓存（强缓存）。后续请求资源直接读取缓存，不再发起任何请求 |
+| 不设置 `no-cache` 或者 `no-store` | 配合前面的 `max-age` 就是强缓存：新鲜期内直接读本地，不再发请求 |
 
 ##### 协商缓存
 
 向服务器验证时：
-- 文件没有改变，服务器返回 HTTP Code：304 Not Modified。Response 没有任何内容。
-- 文件发生变化，服务器返回 HTTP Code：200。Response 是最新的文件内容。
+- 文件没有改变，服务器返回 `304 Not Modified`。没有 body，但响应头还在。
+- 文件发生变化，服务器返回 `200`。Response 是最新的文件内容。
 
-如果不设置值，走直接缓存逻辑。后续不再发起请求。**当本地缓存（强缓存）过期时还是会发起一次协商缓存**。协商缓存结果：
+如果不设置 `no-cache` 或者 `no-store`，又写了 `max-age`，新鲜期内走强缓存，不再发请求。**过了 `max-age` 还是会发起一次协商缓存**。协商缓存结果：
 - 文件没有变化。这个文件自动再按 `max-age` 进行续期，过期前不再发起请求。
 - 文件有变化。返回新的内容，再次进行本地缓存（强缓存）。
 
@@ -610,12 +612,14 @@ location /static/ {
 
 Nginx 的 `expires` 其实是一个方便的写法，比如我没有那么复杂的缓存策略，我就想要缓存多长时间就过期了，就可以使用 `expires`。
 
-设置了 `expires` 后，会返回 2 个 HTTP 响应头：
+设置了 `expires` 后，会返回 2 个 HTTP 响应头。比如 `expires 7d;`：
 
 ```http
 Expires: ...
-Cache-Control: max-age=31536000
+Cache-Control: max-age=604800
 ```
+
+`7d` 就是 7 天，`max-age` 是秒，604800 = 7 × 24 × 3600。
 
 也就是说 `expires` 是 Nginx 给我的一个快捷指令。其实它还是用的 Cache-Control，但是同时也会设置 Expires，让我们能更方便的看到过期的时间。
 
@@ -657,11 +661,11 @@ Etag 是 Nginx 给文件设置的一个唯一标识。你看这个值像不像�
 
 #### 响应头 Last-Modified
 
-Last-Modified 是 Nginx 上文件的最后修改时间。如果上传了新的文件，那这个时间就会更新，即使文件的内容一样。
+Last-Modified 来自文件在磁盘上的最后修改时间（mtime）。覆盖上传时操作系统通常会把 mtime 改成现在，所以**内容即使一样，这个头也会变**。反过来，若拷贝时保留了原来的 mtime（比如 `cp -p`），内容换了、这个头也可能不变。
 
 #### Etag 和 Last-Modified 的优先级
 
-Etag 的优先级是高于 Last-Modified 的，因为它能表达的内容更丰富于 Etag。所以当这两个同时存在时，只有 Etag 会生效。
+响应里这两个头通常会一起带。浏览器再验证时，请求里往往会同时带上 `If-None-Match`（对 ETag）和 `If-Modified-Since`（对 Last-Modified）。**两个都有时，以 ETag 为准**，`If-Modified-Since` 会被忽略。ETag 比 Last-Modified 能表达的信息更多：同样的修改时间，文件大小变了，ETag 也会变。
 
 #### 协商缓存如何验证文件是否有效
 
@@ -675,7 +679,7 @@ If-None-Match: "6aa7fa3a-37edb"
 - If-Modified-Since 对应的本地缓存文件的 Last-Modified 的值。
 - If-None-Match 对应的本地缓存文件的 Etag 的值。
 
-Nginx 就会根据这两个的值来判断本地缓存的文件是否已过期，如果没有过期就返回 `304 Not Modified`，没有 Response。如果过期了，就返回 `200`，Response 是最新的内容。
+Nginx 就会根据这两个的值来判断本地缓存的文件是否已过期。如果没有过期就返回 `304 Not Modified`，没有 body。如果过期了，就返回 `200`，body 是最新的内容。
 
 不管是否过期，Response Headers 里面都会返回响应头 Etag 和 Last-Modified。
 
