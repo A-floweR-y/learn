@@ -637,3 +637,40 @@ If-None-Match: "6aa7fa3a-37edb"
 Nginx 就会根据这两个的值来判断本地缓存的文件是否已过期，如果没有过期就返回 `304 Not Modified`，没有 Response。如果过期了，就返回 `200`，Response 是最新的内容。
 
 不管是否过期，Response Headers 里面都会返回响应头 Etag 和 Last-Modified。
+
+## 完整实例
+
+最后我们出一个比较全的 nginx 配置，用上上面所有学习的内容。
+
+```nginx
+http {
+    server {
+        listen 8080;                    # 监听端口
+        root dist;                      # 文件根目录，路径 = root + URI
+        index index.html;               # 目录请求默认找哪个文件，不写也是 index.html
+
+        open_file_cache max=10000 inactive=60s;  # 缓存已打开文件的信息；max 条数上限，inactive 多久没访问就踢掉
+        open_file_cache_valid 30s;      # 隔多久重新校验缓存里的文件信息
+        open_file_cache_min_uses 2;     # inactive 内至少访问几次，才把描述符留在缓存里
+        open_file_cache_errors on;      # 查找失败（比如 404）也缓存，避免反复打磁盘
+
+        sendfile on;                    # 内核直接把文件打到 socket
+        tcp_nopush on;                  # 和大文件一起用，头和文件开头尽量打进同一个包
+        tcp_nodelay on;                 # 小包立刻发；可与 tcp_nopush 同时开
+
+        etag on;                        # 默认就是 on，可省略；响应头 ETag = mtime + size
+        if_modified_since exact;        # 默认就是 exact，可省略；按 Last-Modified 做协商缓存
+
+        # URL /static/cat.jpg → 磁盘 dist/assets/cat.jpg（前缀对不上才用 alias）
+        location /static/ {
+            alias dist/assets/;         # 末尾斜杠要和 location 成对
+            add_header Cache-Control "public, max-age=31536000, immutable";  # 带 hash 的静态资源：谁都能缓存，新鲜一年
+        }
+
+        location / {
+            try_files $uri $uri/ /index.html;  # 先当文件，再当目录，都没有就内部重定向到 /index.html（SPA）
+            add_header Cache-Control "no-cache";  # HTML 走协商缓存；子层写了 add_header 就不会再继承别处的
+        }
+    }
+}
+```
