@@ -2,6 +2,8 @@
 
 Nginx 其中一个功能就是做静态文件服务器。静态资源就是：Nginx 直接从磁盘读文件，把内容返回给客户端。
 
+---
+
 ## 目录
 
 - [指令](#指令)
@@ -9,11 +11,44 @@ Nginx 其中一个功能就是做静态文件服务器。静态资源就是：Ng
   - [root](#root)
     - [root 与 location](#root-与-location)
   - [alias](#alias)
+    - [前缀匹配](#前缀匹配)
+    - [注意小坑](#注意小坑)
+    - [正则匹配](#正则匹配)
   - [index](#index)
   - [try_files](#try_files)
     - [最后一项](#最后一项)
       - [内部重定向](#内部重定向)
     - [静态站最常见的写法](#静态站最常见的写法)
+    - [前端 SPA 经典配置](#前端-spa-经典配置)
+- [Nginx 的性能优化](#nginx-的性能优化)
+  - [Nginx 缓存文件](#nginx-缓存文件)
+    - [open_file_cache](#open_file_cache)
+    - [open_file_cache_valid](#open_file_cache_valid)
+    - [open_file_cache_min_uses](#open_file_cache_min_uses)
+    - [open_file_cache_errors](#open_file_cache_errors)
+  - [Nginx 发送文件](#nginx-发送文件)
+    - [sendfile](#sendfile)
+    - [tcp_nopush](#tcp_nopush)
+    - [tcp_nodelay](#tcp_nodelay)
+- [HTTP 静态资源缓存](#http-静态资源缓存)
+  - [add_header](#add_header)
+    - [Cache-Control](#cache-control)
+      - [谁可以缓存](#谁可以缓存)
+      - [缓存多久](#缓存多久)
+      - [如何存储](#如何存储)
+      - [协商缓存](#协商缓存)
+      - [刷新是否读取缓存](#刷新是否读取缓存)
+  - [expires](#expires)
+    - [Expires 响应头](#expires-响应头)
+    - [Nginx 的 expires](#nginx-的-expires)
+  - [etag & if_modified_since](#etag--if_modified_since)
+    - [响应头 Etag](#响应头-etag)
+    - [响应头 Last-Modified](#响应头-last-modified)
+    - [Etag 和 Last-Modified 的优先级](#etag-和-last-modified-的优先级)
+    - [协商缓存如何验证文件是否有效](#协商缓存如何验证文件是否有效)
+- [完整实例](#完整实例)
+
+---
 
 ## 指令
 
@@ -33,6 +68,8 @@ http {
 所以后面每条指令都会带一张表：**能写在哪**、**会不会继承**。
 
 继承的原则：**子层没写，就用父层的值。子层写了，就不再用父层的值**。
+
+---
 
 ## URL 是如何变成文件的
 
@@ -138,12 +175,12 @@ http {
 
         # root
         location /images/ {
-            root dist; 
+            root dist;
         }
 
         # alias
         location /static/ {
-            alias dist/assets/
+            alias dist/assets/;
         }
     }
 }
@@ -157,7 +194,7 @@ http {
 
 #### 注意小坑
 
-因为这里是字符串拼接，所以就要注意尾部 `/`。尽量 location 以 `/` 结束，alias 也就同样用 `/` 结尾。
+因为这里是字符串拼接，所以就要注意尾部 `/`。尽量 `location` 以 `/` 结束，`alias` 也就同样用 `/` 结尾。
 
 假如我们的 Nginx 配置：
 
@@ -218,7 +255,7 @@ http {
 
 #### 指定多个 index
 
-index 是可以指定多个的，比如：`index index.html index.htm default.html`; 
+index 是可以指定多个的，比如：`index index.html index.htm default.html;` 
 
 它的意思是：依次寻找这几个文件，直到找到存在的那个文件。如果都没有就返回 404。
 
@@ -240,7 +277,7 @@ index 是可以指定多个的，比如：`index index.html index.htm default.ht
 
 内部重定向不是浏览器看到的 `301` / `302`。客户端 URL 不变，Nginx 在内部把最后一项的 URI **再走一轮 [location 匹配逻辑](./location.md)**。
 
-例如下面的 nginx 配置。如果没有找到 $uri，就会把 /index.html 当做是个新请求的 URI，再重新走一遍 [location 匹配逻辑](./location.md)：
+例如下面的 nginx 配置。如果没有找到 `$uri`，就会把 `/index.html` 当做是个新请求的 URI，再重新走一遍 [location 匹配逻辑](./location.md)：
 
 ```nginx
 http {
@@ -299,11 +336,11 @@ http {
 }
 ```
 
-它的意思是：当前的 $uri 是文件吗？
-  - 是。返回文件
-  - 不是。当前的 $uri 是目录吗？
-    - 是。返回目录下面的 index.html
-    - 不是。那就返回 404
+它的意思是：当前的 `$uri` 是文件吗？
+- 是。返回文件
+- 不是。当前的 `$uri` 是目录吗？
+  - 是。返回目录下面的 `index.html`
+  - 不是。那就返回 404
 
 #### 前端 SPA 经典配置
 
@@ -319,6 +356,8 @@ location / {
 因为是前端接管路由，服务器并没有对应的文件。但是静态文件依旧读服务器内容。
 
 > `$uri` 是 Nginx 的内置变量：当前请求规范化后的 path，不含 `host`、`query`、`hash`。详见 [Nginx 常用变量](./variables.md)。
+
+---
 
 ## Nginx 的性能优化
 
@@ -374,7 +413,7 @@ Nginx 作为静态文件服务器时，每次处理静态文件，都需要和�
 | -- | -- | -- |
 | 文件查找错误也可以被缓存 | **Yes** | `http` `server` `location` |
 
-官方默认是 `open_file_cache_min_uses off;`。
+官方默认是 `open_file_cache_errors off;`。
 
 **参数介绍**：
 
@@ -385,7 +424,7 @@ Nginx 作为静态文件服务器时，每次处理静态文件，都需要和�
 
 ### Nginx 发送文件
 
-这里说一下在 Nginx 找到文件后，如果更高效的吧文件内容发送给客户端。
+这里说一下在 Nginx 找到文件后，如何更高效的把文件内容发送给客户端。
 
 #### sendfile
 
@@ -436,9 +475,12 @@ Nginx 官方文档会推荐 **`tcp_nopush on` 和 `tcp_nodelay on` 同时打开*
 | `off` | 关闭，走 Nagle 攒小包 |
 | `on` | 开启，小包立刻发 |
 
+---
+
 ## HTTP 静态资源缓存
 
 这个大家多少都知道一些，这里就当做复习一下吧！
+
 HTTP 静态资源缓存主要是靠 Response Headers 来返回不同的值来设置的。所以我们会先说到 Nginx 的添加 Headers 的执行 `add_header`。
 
 ### add_header
@@ -537,7 +579,6 @@ location /static/ {
 | -- | -- | -- |
 | 告诉浏览器可以缓存多长时间 | **Yes** | `http` `server` `location` |
 
-
 ```nginx
 location /static/ {
     expires 7d;
@@ -567,7 +608,7 @@ location /static/ {
 
 #### Nginx 的 expires
 
-Nginx 的 `expires` 其实是一个方便的写法，比如我没有那么复杂的缓存策略，我就想要缓存多长时机就过期了，就可以使用 `expires`。
+Nginx 的 `expires` 其实是一个方便的写法，比如我没有那么复杂的缓存策略，我就想要缓存多长时间就过期了，就可以使用 `expires`。
 
 设置了 `expires` 后，会返回 2 个 HTTP 响应头：
 
@@ -578,7 +619,7 @@ Cache-Control: max-age=31536000
 
 也就是说 `expires` 是 Nginx 给我的一个快捷指令。其实它还是用的 Cache-Control，但是同时也会设置 Expires，让我们能更方便的看到过期的时间。
 
-`expires` 和 `add_header Cache-Control` 可以同时设置，但是响应头回出现两个 Cache-Control。比如：
+`expires` 和 `add_header Cache-Control` 可以同时设置，但是响应头会出现两个 Cache-Control。比如：
 
 ```nginx
 location /assets/ {
@@ -601,7 +642,7 @@ Cache-Control: public, immutable
 
 Nginx 中 `etag` 默认值就是 `on`，`if_modified_since` 默认值是 `exact`。所以这两个是不用设置的。
 
-他们2个的功能分别对应 2 个相应头：Etag 和 Last-Modified。例如：
+他们 2 个的功能分别对应 2 个响应头：ETag 和 Last-Modified。例如：
 
 ```http
 Etag: "6aa7fa3a-37edb"
@@ -620,7 +661,7 @@ Last-Modified 是 Nginx 上文件的最后修改时间。如果上传了新的�
 
 #### Etag 和 Last-Modified 的优先级
 
-Etag 的优先级是高于 Last-Modified 的，因为它能表达的内容更丰富预 Etag。所以当这两个同时存在时。只有 Etag 会生效。
+Etag 的优先级是高于 Last-Modified 的，因为它能表达的内容更丰富于 Etag。所以当这两个同时存在时，只有 Etag 会生效。
 
 #### 协商缓存如何验证文件是否有效
 
@@ -637,6 +678,8 @@ If-None-Match: "6aa7fa3a-37edb"
 Nginx 就会根据这两个的值来判断本地缓存的文件是否已过期，如果没有过期就返回 `304 Not Modified`，没有 Response。如果过期了，就返回 `200`，Response 是最新的内容。
 
 不管是否过期，Response Headers 里面都会返回响应头 Etag 和 Last-Modified。
+
+---
 
 ## 完整实例
 
