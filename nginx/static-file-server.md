@@ -451,7 +451,7 @@ HTTP 静态资源缓存主要是靠 Response Headers 来返回不同的值来设
 指令那一小节说过继承的原则：**子层没写，就用父层的值。子层写了，就不再用父层的值**。
 对于 `add_header` 来说，只有子层没有写，就继承父层的值。但只要**子层写了1个，即使跟父级设置的 header 头不冲突，也不再继承父层的 `add_header` 了**。
 
-### Cache-Control
+#### Cache-Control
 
 ```nginx
 location /static/ {
@@ -461,7 +461,7 @@ location /static/ {
 
 `Cache-Control` 是为了更精确地控制浏览器如何缓存，而诞生的响应头。参数可以逗号拼在一起。
 
-#### 谁可以缓存
+##### 谁可以缓存
 
 | 参数 | 作用 |
 | -- | -- |
@@ -470,7 +470,7 @@ location /static/ {
 
 当然这个参数只是告诉中间层是否可以缓存，但是中间层是否缓存还要看它具体的缓存策略。
 
-#### 缓存多久
+##### 缓存多久
 
 | 参数 | 作用 |
 | -- | -- |
@@ -480,7 +480,7 @@ location /static/ {
 `max-age` 和 `s-maxage` 可以同时设置，就分别代表浏览器和CDN（或者其他中间层）的缓存时间。
 当然中间层听不听还要看它自己的缓存策略。
 
-#### 如何存储
+##### 如何存储
 
 | 参数 | 作用 |
 | -- | -- |
@@ -496,7 +496,7 @@ location /static/ {
 - 文件没有变化。这个文件自动再按 `max-age` 进行续期，过期前不再发起请求。
 - 文件有变化。返回新的内容，再次进行本地缓存。
 
-#### 刷新是否读取缓存
+##### 刷新是否读取缓存
 
 | 参数 | 作用 |
 | -- | -- |
@@ -506,3 +506,68 @@ location /static/ {
 
 ### expires
 
+> 这里是说的 Nginx 的指令 `expires`。并不是 HTTP 响应中的 Expires。
+
+| 作用 | 是否支持继承 | 支持设置的层级 |
+| -- | -- | -- |
+| 告诉浏览器可以缓存多长时间 | **Yes** | `http` `server` `location` |
+
+
+```nginx
+location /static/ {
+    expires 7d;
+}
+```
+
+`expires` 的单位和含义如下：
+
+| 单位 | 含义 |
+| -- | -- |
+| `ms` | 毫秒 |
+| `s` | 秒 |
+| `m` | 分钟 |
+| `h` | 小时 |
+| `d` | 天 |
+| `w` | 周 |
+| `M` | 月（按 30 天） |
+| `y` | 年（按 365 天） |
+
+`m` 和 `M` 不一样：小写是分钟，大写是月。`7d` 就是 7 天。
+
+多个时间可以拼在一起写，比如 `1h 30m`。
+
+#### Expires 响应头
+
+我们都知道 Expires 响应头也可以表示过期时间。它是 HTTP 1.0 的产物，而 Cache-Control 是 HTTP 1.1 的产物。因为 Cache-Control 所能表示的缓存策略要比 Expires 更加的精准，所以 Cache-Control 的优先级是高于 Expires 的。
+
+#### Nginx 的 expires
+
+Nginx 的 `expires` 其实是一个方便的写法，比如我没有那么复杂的缓存策略，我就想要缓存多长时机就过期了，就可以使用 `expires`。
+
+设置了 `expires` 后，会返回 2 个 HTTP 响应头：
+
+```http
+Expires: ...
+Cache-Control: max-age=31536000
+```
+
+也就是说 `expires` 是 Nginx 给我的一个快捷指令。其实它还是用的 Cache-Control，但是同时也会设置 Expires，让我们能更方便的看到过期的时间。
+
+`expires` 和 `add_header Cache-Control` 可以同时设置，但是响应头回出现两个 Cache-Control。比如：
+
+```nginx
+location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+}
+```
+
+Nginx 可能返回两个 Cache-Control：
+
+```http
+Expires: ...
+Cache-Control: max-age=31536000
+Cache-Control: public, immutable
+```
+
+因为我们并不能确定在不同的中间层面对 2 个同样的 Cache-Control 时会如何处理，所以最好要控制 Cache-Control 时就直接用 `add_header Cache-Control`。
