@@ -127,3 +127,43 @@ fastify.get('/users/:id', async (request) => {
 ```
 
 ## ctx
+
+路由的 handler 函数会有 2 个参数 `request` 和 `reply`。分别对应 Koa 或者 Express 的 `ctx.request` 和 `ctx.response`。
+
+### request
+
+本次请求的信息。
+
+```js
+fastify.get('/users/:id', async (request) => {
+  // ...
+});
+```
+
+常用的字段：
+
+| 字段 | 作用 | 例子 |
+| -- | -- | -- |
+| `request.params` | Path 参数（路由里的 `:xxx`） | `/users/:id` 请求 `/users/123` 时，`request.params.id === '123'` |
+| `request.query` | Query 字符串解析后的对象 | `/users?page=2&limit=10` 时，`request.query.page === '2'` |
+| `request.body` | 请求体。JSON 需带 `Content-Type: application/json` | `POST /users` 且 body 为 `{"name":"tom"}` 时，`request.body.name === 'tom'` |
+| `request.headers` | 请求头。键名一律小写 | `request.headers['user-agent']`、`request.headers['content-type']` |
+| `request.method` | HTTP Method，大写 | `'GET'`、`'POST'`、`'PUT'`、`'DELETE'` |
+| `request.url` | 请求路径 + query（不含 host） | 请求 `/users/123?x=1` 时，`request.url === '/users/123?x=1'` |
+
+### reply
+
+只有当你需要控制响应时，才使用它。大多数情况直接 `return` 即可，Fastify 会帮你发出去。需要改状态码、Header、跳转时再用 `reply`。
+
+常见方法：
+
+| 方法 | 作用 | 示例 |
+| -- | -- | -- |
+| `reply.code(n)` | 设置 HTTP 状态码，可链式调用 | `return reply.code(201).send({ id: 1 })` |
+| `reply.header(name, value)` | 设置单个响应头 | `reply.header('x-request-id', 'abc')` |
+| `reply.headers(obj)` | 一次设置多个响应头 | `reply.headers({ 'x-a': '1', 'x-b': '2' })` |
+| `reply.type(mime)` | 设置 `Content-Type` | `reply.type('text/html').send('<h1>ok</h1>')` |
+| `reply.send(payload)` | 发送响应体。发过一次后再 `send` 会报错 | `reply.send({ ok: true })` |
+| `reply.redirect(url)` | 302 跳转。也可 `redirect(code, url)` | `return reply.redirect('/login')` |
+
+你可能会发现 `reply.send(payload)` 也可以发送数据。是的，Fastify 支持 2 中发送数据的方式。推荐使用 return。
