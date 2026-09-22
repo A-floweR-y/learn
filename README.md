@@ -11,14 +11,14 @@
 - [Unix Command](./unix-command/README.md) - 黑窗口里的极简主义
     - [cron](./unix-command/cron.md) - 让闹钟唤醒你的程序
     - [vim](./unix-command/vim.md) - 不爱，可有时只有它在
-    - [apt / dnf](./unix-command/apt-dnf.md) - 安装包管理小工具
-- [Github Actions](./github-actions/README.md) - 关于 CI/CD 的魅力
+    - [apt / dnf](./unix-command/apt-dnf.md) - 需要什么，就装什么
+- [Github Actions](./github-actions/README.md) - 代码加工生产线
 - [Nginx](./nginx/README.md) - 轻量、高性能的 Web 服务器
-    - [location 匹配规则](./nginx/location.md) - 请求落到哪一条 location
-    - [location 匹配流程图](./nginx/location-flow.md) - 五种写法怎么走完一轮
-    - [嵌套 location 匹配流程图](./nginx/location-nested-flow.md) - 前缀往里、正则往外
-    - [Nginx 常用变量](./nginx/variables.md) - `$uri` 这些内置变量是什么
-    - [静态文件服务器](./nginx/static-file-server.md) - root 怎么把 URL 变成磁盘路径
+    - [location 匹配规则](./nginx/location.md) - Nginx 最终的选择
+    - [location 匹配流程图](./nginx/location-flow.md) - Location 逻辑可视化
+    - [嵌套 location 匹配流程图](./nginx/location-nested-flow.md) - 嵌套 Location 逻辑可视化
+    - [Nginx 常用变量](./nginx/variables.md) - $ 给你需要的东西
+    - [静态文件服务器](./nginx/static-file-server.md) -  Nginx 正在为您查找文件
  - [Fastify](./fastify/README.md) - 天下武功，唯快不破
 
 
