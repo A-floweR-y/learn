@@ -41,3 +41,89 @@ Keep-Alive: timeout=72
 
 这说明我们服务已经成功启用了，只不过我们还没有配置 Route。所以访问 / 会返回 404。
 
+## Route
+
+接下来我们写上我们的第一条 Route：
+
+```diff
+  import Fastify from 'fastify'
+
+  const fastify = Fastify()
+
++ fastify.get('/', async () => {
++   return 'Hello World'
++ })
+
+  await fastify.listen({
+    port: 3000
+  })
+```
+
+再次请求 `curl -i http://localhost:3000/`，我们会看到：
+
+```text
+HTTP/1.1 200 OK
+content-type: text/plain; charset=utf-8
+content-length: 11
+Date: Tue, 22 Sep 2026 09:38:10 GMT
+Connection: keep-alive
+Keep-Alive: timeout=72
+
+Hello World
+```
+
+Route 根据不同的请求 Method 和 URI 来找到对应的 Handler 函数。
+
+### 4 种最常见的 Method
+
+| Fastify            | HTTP   |
+| ------------------ | ------ |
+| `fastify.get()`    | GET    |
+| `fastify.post()`   | POST   |
+| `fastify.put()`    | PUT    |
+| `fastify.delete()` | DELETE |
+
+做一个非常简单的小测试：
+
+```js
+import Fastify from 'fastify';
+
+const fastify = Fastify();
+
+fastify.get('/users', async () => {
+  return 'GET users';
+})
+
+fastify.post('/users', async () => {
+  return 'POST users';
+});
+
+await fastify.listen({
+  port: 3000,
+});
+```
+
+请求：`curl -i http://localhost:3000/users` 返回 'GET users'。
+请求：`curl -i -X POST http://localhost:3000/users` 返回 'POST users'。
+
+### Path 参数
+
+跟其他的路由系统一样，Path Params 都是用 `:xxx` 的形式。
+
+```js
+fastify.get('/users/:id', async () => {
+  return 'user',
+});
+```
+
+请求 `curl -i http://localhost:3000/users/123` 和 `curl -i http://localhost:3000/users/abc` 都返回 `user`。而请求 `curl -i http://localhost:3000/users` 则会返回 'GET user'。
+
+当然我们也可以返回 Path 参数。路由 handler 的第一个参数是 `request`，我们可以通过 `request.params` 来返回：
+
+```js
+fastify.get('/users/:id', async (request) => {
+  return 'user ' + request.params.id,
+});
+```
+
+## ctx
