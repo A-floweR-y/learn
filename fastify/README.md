@@ -12,7 +12,7 @@ Fastify 的两个标签是 `Fast`（快速） 和 `Low Overhead`（低开销）�
 
 你是否还记得有一个项目 [fast-json-stringify](https://github.com/fastify/fast-json-stringify)，通过提前指定 JSON 的数据类型，通过字符串拼接的形式，来让 JSON Stringify 的性能超越 JS 原生的 `JSON.stringify()` 函数。其实 Fastify 的起源就跟这个项目有关，而 Fastify 的 Scheme 就跟这个项目的思路类似。后面我们会提到。
 
-## Hello World
+## 最简单的小例子
 
 我们先用 Fastify 创建一个最简单的 Web 服务。我们先创建一个 `hello_world.js` 的文件：
 
@@ -212,11 +212,11 @@ fastify.get('/users/:name', async () => {
 });
 ```
 
-## 请求上下文
+## Request / Reply
 
 路由的 handler 函数会有 2 个参数 `request` 和 `reply`。分别对应 Koa 或者 Express 的 `ctx.request` 和 `ctx.response`。
 
-### request
+### Request
 
 本次请求的信息。
 
@@ -237,7 +237,7 @@ fastify.get('/users/:id', async (request) => {
 | `request.method` | HTTP Method，大写 | `'GET'`、`'POST'`、`'PUT'`、`'DELETE'` |
 | `request.url` | 请求路径 + query（不含 host） | 请求 `/users/123?x=1` 时，`request.url === '/users/123?x=1'` |
 
-### reply
+### Reply
 
 只有当你需要控制响应时，才使用它。大多数情况直接 `return` 即可，Fastify 会帮你发出去。需要改状态码、Header、跳转时再用 `reply`。
 
@@ -264,3 +264,21 @@ reply
     message: 'created'
   })
 ```
+
+## Schema
+
+## Lifecycle & Hooks
+
+## Plugin & Encapsulation
+
+## Decorator
+
+## Error Handling
+
+## Logging
+
+## Testing
+
+## TypeScript
+
+## 完整小例子
