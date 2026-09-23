@@ -212,7 +212,7 @@ fastify.get('/users/:name', async () => {
 });
 ```
 
-## ctx
+## 请求上下文
 
 路由的 handler 函数会有 2 个参数 `request` 和 `reply`。分别对应 Koa 或者 Express 的 `ctx.request` 和 `ctx.response`。
 
@@ -249,7 +249,18 @@ fastify.get('/users/:id', async (request) => {
 | `reply.header(name, value)` | 设置单个响应头 | `reply.header('x-request-id', 'abc')` |
 | `reply.headers(obj)` | 一次设置多个响应头 | `reply.headers({ 'x-a': '1', 'x-b': '2' })` |
 | `reply.type(mime)` | 设置 `Content-Type` | `reply.type('text/html').send('<h1>ok</h1>')` |
-| `reply.send(payload)` | 发送响应体。发过一次后再 `send` 会报错 | `reply.send({ ok: true })` |
+| `reply.send(payload)` | 发送响应体。 | `reply.send({ ok: true })` |
 | `reply.redirect(url)` | 302 跳转。也可 `redirect(code, url)` | `return reply.redirect('/login')` |
 
-你可能会发现 `reply.send(payload)` 也可以发送数据。是的，Fastify 支持 2 中发送数据的方式。推荐使用 return。
+你可能会发现 `reply.send(payload)` 也可以发送数据。是的，Fastify 支持 2 种发送数据的方式。推荐使用 永远使用 `return`。
+
+replay 所有的方法都支持链式调用，比如：
+
+```js
+reply
+  .code(201)
+  .header('x-version', '1.0')
+  .send({
+    message: 'created'
+  })
+```
