@@ -76,12 +76,12 @@ Route 根据不同的请求 Method 和 URI 来找到对应的 Handler 函数。
 
 ### 4 种最常见的 Method
 
-| Fastify            | HTTP   |
-| ------------------ | ------ |
-| `fastify.get()`    | GET    |
-| `fastify.post()`   | POST   |
-| `fastify.put()`    | PUT    |
-| `fastify.delete()` | DELETE |
+| Fastify | HTTP |
+| -- | -- |
+| `fastify.get(path, [options], handler)` | GET |
+| `fastify.post(path, [options], handler)` | POST |
+| `fastify.put(path, [options], handler)` | PUT |
+| `fastify.delete(path, [options], handler)` | DELETE |
 
 做一个非常简单的小测试：
 
@@ -123,6 +123,92 @@ fastify.get('/users/:id', async () => {
 ```js
 fastify.get('/users/:id', async (request) => {
   return 'user ' + request.params.id,
+});
+```
+
+#### path 参数正则约束
+
+Fastify 支持对 path 的参数进行约束，比如我们的 id 是数字类型。如果我们只写 `get(/users/:id)`，那请求 `/users/abc` 可以是可以进入当前的 handler 的。所以，这时候我们需要对 handler 进行约束。对参数的约束要在参数后面增加小括号，约束的正则内容写在这里面。比如：
+
+```js
+fastify.get(/users/:id(^\\d+$)) // 两个反斜杠是因为要字符串转译
+```
+
+### Path 通配符
+
+path 除了参数还支持统配符号：
+
+```js
+fastify.get('/users/*', async () => {
+  return 'user',
+});
+```
+
+### 完整的 Route API
+
+Fastify 还提供了 `fastify.route(options)`。前面的 `get` / `post` / `put` / `delete` 都是它的语法糖，完整写法可以把 Method、Path、Handler 等写在同一个对象里：
+
+```js
+fastify.route({
+  method: 'GET',
+  url: '/users/:id',
+  handler: async (request) => {
+    return { id: request.params.id };
+  },
+});
+```
+
+`options` 常用字段（大概看看就行，后面我们会详细学习每个字段）：
+
+| 字段 | 作用 | 例子 |
+| -- | -- | -- |
+| `method` | HTTP Method。可以是字符串，也可以是数组（一条路由吃多种 Method） | `'GET'`、`['GET', 'HEAD']` |
+| `url` | 路径。别名是 `path`，两个写一个即可 | `'/users/:id'` |
+| `handler` | 处理函数，和 `fastify.get(path, handler)` 里的 handler 一样 | `async (request, reply) => { ... }` |
+| `schema` | 请求/响应的 JSON Schema。用来校验入参，也用来加速序列化 | `{ params: { type: 'object', properties: { id: { type: 'string' } } } }` |
+| `preHandler` | 进 handler 之前跑的钩子。适合鉴权、取用户、补数据 | `async (request, reply) => {if (!request.headers.authorization) reply.code(401).send({ error: 'unauthorized' }) }` |
+| `config` | 这条路由自己的自定义配置，之后用 `request.routeOptions.config` 读 | `{ public: true }` |
+| `constraints` | 路由约束，最常见是按 Host 或 API version 分流 | `{ version: '1.0.0' }` |
+| `bodyLimit` | 这条路由的 body 大小上限（字节）。不写就用实例默认值 | `1048576`（1MB） |
+| `errorHandler` | 只覆盖这条路由的错误处理 | `(error, request, reply) => { reply.code(400).send({ error: error.message }) }` |
+
+### Route 匹配的优先级
+
+如果我们请求 `GET /users/123`。那下面的路由匹配会选择哪一条呢？
+
+```js
+// 静态路由
+fastify.get('/users/123', async () => {
+  return 'User Static',
+});
+
+// 正则约束参数
+fastify.get('/users/:id(^\\d+$)', async () => {
+  return 'User RegExp',
+});
+
+// 普通参数
+fastify.get('/users/:id', async () => {
+  return 'User Params',
+});
+
+// 通配符
+fastify.get('/users/*', async () => {
+  return 'User Wildcard',
+});
+```
+
+Fastify 会匹配到那条最匹配当前请求的路由。你可以粗略的理解一下优先级：`Static > RegExp Params > Params > Wildcard`。所以，最后会返回：`User Static`。
+
+如果是同种类型的路由，则按注册顺序排序，最早注册的优先级高。比如下面的例子，最后返回的是 `ID`：
+
+```js
+fastify.get('/users/:id', async () => {
+  return 'ID',
+});
+
+fastify.get('/users/:name', async () => {
+  return 'Name',
 });
 ```
 
