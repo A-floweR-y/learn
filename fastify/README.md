@@ -727,6 +727,40 @@ fastify.post('/orders', {
 
 ## Lifecycle & Hooks
 
+Fastify 一次请求的流程图。
+
+```text
+  请求侧                                 响应侧
+
+                                         onResponse [Hook]
+                                            ▲
+                                            │
+  HTTP Request                           HTTP Response
+    │                                       ▲
+    ▼                                       │
+  Routing（路由匹配）                    onSend [Hook]
+    │                                       ▲
+    ▼                                       │
+  onRequest [Hook]                       Serialization（响应序列化）
+    │                                       ▲
+    ▼                                       │
+  preParsing [Hook]                      preSerialization [Hook]
+    │                                       ▲
+    ▼                                       │
+  Parsing（请求解析）                       │
+    │                                       │
+    ▼                                       │
+  preValidation [Hook]                      │
+    │                                       │
+    ▼                                       │
+  Validation（Schema 验证）                 │
+    │                                       │
+    ▼                                       │
+  preHandler [Hook]                         │
+    │                                       │
+    └────────── Handler（业务）─────────────┘
+```
+
 ## Plugin & Encapsulation
 
 ## Decorator
