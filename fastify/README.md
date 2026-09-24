@@ -760,6 +760,82 @@ Fastify 一次请求的流程图。
     │                                       │
     └────────── Handler（业务）─────────────┘
 ```
+ 
+> 备注：payload 是 string、Buffer、stream 或 null 时，不经过 preSerialization
+
+我们说一下每个 hook 的使用场景：
+
+### onRequest
+
+请求刚刚进来，Body Parsing 还没有发生。这时还那不到 `request.body`。只能拿到以下内容：
+
+```text
+request
+├── method
+├── url
+├── headers
+├── params
+├── query
+├── id
+├── ip
+└── ...
+```
+
+**使用场景**：
+1. 记录性能起始日志
+2. 检测 ip 或者 header
+3. 添加一些基础的内容，做上下文的初始化
+
+### preParsing
+
+准备要解析 `request.body` 了。
+
+**使用场景**：
+1. 处理特殊的body，比如：解压、解密等
+
+### preValidation
+
+`request.body` 已经解析出来了，但是还没有用 Scheme 验证 body 的内容。
+
+**使用场景**：
+1. 对 `request.body` 做一些数据处理，比如：格式转换。
+
+### preHandler
+
+最常用的 Hook 之一！！！`request.body` 已经通过 Schema 验证，现在马上就要进入 Handler。
+
+**使用场景**：
+1. 登录认证
+2. 权限检测
+3. 业务前置检查
+
+### Handler
+
+就是咱们定义的业务处理函数，最终返回内容。
+
+### preSerialization
+
+Handler 业务逻辑处理结果，返回了结果，但还没被序列化成最终响应。
+
+**使用场景**：
+1. 统一响应结构。比如外层必须有 `code`（业务代码），用 `data` 包裹业务数据，必须返回 `success` 等。
+
+### onSend
+
+最常用的 Hook 之一！！！数据系列化完毕，即将发送数据。
+
+**使用场景**：
+1. 统一增加 Response Header
+2. 修改最终 payload。比如改成 Buffer、stream。
+
+### onResponse
+
+请求生命周期最后一个 Hook，表示数据已经成功发送出去了。
+
+**使用场景**：
+1. 统计接口耗时，需配合 `onRequest`。
+2. 上报日志给监控平台
+
 
 ## Plugin & Encapsulation
 
