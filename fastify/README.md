@@ -865,6 +865,43 @@ fastify.get('/download', {
 
 ## Plugin & Encapsulation
 
+当项目变大，路由、Hook 和公共能力越来越多时，Fastify 如何组织它们，并控制它们的作用范围？这就是 Plugin 存在的意义。
+
+插件使用 `register` 进行注册，参数是 `fastify.register(plugin, options)`。
+
+| 参数 | 含义 |
+| -- | -- |
+| `plugin` | 要注册的插件函数。同步和 `async` 都支持，默认用 `async` 就行。 |
+| `options` | 传给插件的配置，可选。Fastify 内部预设了下面 3 个字段，其他的自动都为自定义字段。 |
+
+`options` 里 Fastify 预设的字段：
+
+| 字段 | 含义 |
+| -- | -- |
+| `prefix` | 给这个插件里注册的路由统一加 URL 前缀。下面例子里 `/users` 实际是 `/api/users`。 |
+| `logLevel` | 设置这个插件作用域的日志级别。可以是 `fatal`、`error`、`warn`、`info`、`debug`、`trace`、`silent`。不写就跟着外层 logger。 |
+| `logSerializers` | 设置这个插件作用域的日志序列化器，决定某个字段写进日志时长什么样，比如自定义 `req`。后面 Logging 再细说。 |
+
+最简单的例子：
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify()
+
+async function userPlugin(app, options) {
+  app.get('/users', async () => {
+    return [{ id: 1 }]
+  })
+}
+
+fastify.register(userPlugin, {
+  prefix: '/api'
+})
+
+await fastify.listen({ port: 3000 })
+```
+
 ## Decorator
 
 ## Error Handling
