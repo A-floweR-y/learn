@@ -760,14 +760,14 @@ Fastify 一次请求的流程图。
     │                                       │
     └────────── Handler（业务）─────────────┘
 ```
- 
-> 备注：payload 是 string、Buffer、stream 或 null 时，不经过 preSerialization
+
+> 备注：`payload` 是 `string`、`Buffer`、`stream` 或 `null` 时，不经过 `preSerialization`。
 
 我们说一下每个 hook 的使用场景：
 
 ### onRequest
 
-请求刚刚进来，Body Parsing 还没有发生。这时还那不到 `request.body`。只能拿到以下内容：
+路由已经匹配完了，所以 `params` 已经有值。但是 Body Parsing 还没有发生，这时还拿不到 `request.body`。常见能拿到的有这些：
 
 ```text
 request
@@ -781,33 +781,39 @@ request
 └── ...
 ```
 
+当然不止这些，`raw`、`hostname`、`protocol`、`routeOptions` 也能读到。
+
 **使用场景**：
-1. 记录性能起始日志
-2. 检测 ip 或者 header
-3. 添加一些基础的内容，做上下文的初始化
+
+- 记录性能起始日志
+- 检测 `ip` 或者 `header`
+- 添加一些基础的内容，做上下文的初始化
 
 ### preParsing
 
 准备要解析 `request.body` 了。
 
 **使用场景**：
-1. 处理特殊的body，比如：解压、解密等
+
+- 处理特殊的 body，比如：解压、解密等
 
 ### preValidation
 
-`request.body` 已经解析出来了，但是还没有用 Scheme 验证 body 的内容。
+`request.body` 已经解析出来了，但是 Schema 还没开始验证。接下来的 Validation 会一起验 `params`、`querystring`、`headers` 和 `body`，不只是 body。
 
 **使用场景**：
-1. 对 `request.body` 做一些数据处理，比如：格式转换。
+
+- 对 `request.body` 做一些数据处理，比如：格式转换
 
 ### preHandler
 
-最常用的 Hook 之一！！！`request.body` 已经通过 Schema 验证，现在马上就要进入 Handler。
+最常用的 Hook 之一！！！`params`、`querystring`、`headers`、`body` 都已经通过 Schema 验证，现在马上就要进入 Handler。没通过的话会直接走错误处理，到不了这里。
 
 **使用场景**：
-1. 登录认证
-2. 权限检测
-3. 业务前置检查
+
+- 登录认证
+- 权限检测
+- 业务前置检查
 
 ### Handler
 
@@ -818,27 +824,32 @@ request
 Handler 业务逻辑处理结果，返回了结果，但还没被序列化成最终响应。
 
 **使用场景**：
-1. 统一响应结构。比如外层必须有 `code`（业务代码），用 `data` 包裹业务数据，必须返回 `success` 等。
+
+- 统一响应结构，比如外层必须有 `code`（业务代码），用 `data` 包裹业务数据，必须返回 `success` 等
+
+不过如果这条路由配了 response schema，序列化是在这个 Hook 之后做的，输出只会留下 schema 里声明的字段。外层的 `code`、`data`、`success` 会被丢掉，所以 schema 要按包好之后的结构来写。
 
 ### onSend
 
-最常用的 Hook 之一！！！数据系列化完毕，即将发送数据。
+最常用的 Hook 之一！！！数据序列化完毕，即将发送数据。
 
 **使用场景**：
-1. 统一增加 Response Header
-2. 修改最终 payload。比如改成 Buffer、stream。
+
+- 统一增加 Response Header
+- 修改最终 `payload`，比如改成 `Buffer`、`stream`
 
 ### onResponse
 
 请求生命周期最后一个 Hook，表示数据已经成功发送出去了。
 
 **使用场景**：
-1. 统计接口耗时，需配合 `onRequest`。
-2. 上报日志给监控平台
 
-### 声明周期执行顺序
+- 统计接口耗时。直接读 `reply.elapsedTime` 就行，从 Fastify 收到请求开始计，不用自己在 `onRequest` 打点
+- 上报日志给监控平台
 
-单个请求也可以定义自己的声明周期 Hook，比如：
+### 生命周期执行顺序
+
+单个路由也可以定义自己的生命周期 Hook，比如：
 
 ```js
 fastify.get('/download', {
@@ -848,8 +859,8 @@ fastify.get('/download', {
 }, handler)
 ```
 
-那如果全局和单个请求都定义了同一个声明周期的 Hook，执行顺序是什么样的呢？答：**从全局到局部**。
-原因：让全局的公共逻辑先处理，然后再执行特殊的逻辑。包括后面要学习的插件，创建了新的封装空间时，同样还是先执行全局的，然后执行封装空间，然后再执行局部的。
+那如果全局和单个路由都定义了同一个生命周期的 Hook，执行顺序是什么样的呢？答：**从外到内**，路由上声明的排在同级最后。
+原因：让公共逻辑先处理，然后再执行这条路由自己的逻辑。当然，并没有绝对的全局。请求链上的 Hook 都遵循 Hook Scope，从外到内执行。后面要学的插件创建了新的 Hook Scope 时，也是这个顺序。
 
 
 ## Plugin & Encapsulation
@@ -864,4 +875,9 @@ fastify.get('/download', {
 
 ## TypeScript
 
-## 完整小例子：
+## 工程化与实际项目
+
+- 身份认证与授权
+- 数据库接入
+- 配置与环境变量
+- 部署与生产环境问题
