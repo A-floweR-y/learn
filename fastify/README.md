@@ -789,6 +789,17 @@ request
 - 检测 `ip` 或者 `header`
 - 添加一些基础的内容，做上下文的初始化
 
+比如拒绝没有 token 的请求：
+
+```js
+fastify.addHook('onRequest', async (request, reply) => {
+  if (request.headers.authorization == null) {
+    reply.code(401)
+    throw new Error('missing token')
+  }
+})
+```
+
 ### preParsing
 
 准备要解析 `request.body` 了。
@@ -797,6 +808,17 @@ request
 
 - 处理特殊的 body，比如：解压、解密等
 
+`payload` 是还没解析的原始流。要改内容的话，返回一个新的流：
+
+```js
+fastify.addHook('preParsing', async (request, reply, payload) => {
+  if (request.headers['x-encrypted'] !== '1') {
+    return payload
+  }
+  return decryptStream(payload)
+})
+```
+
 ### preValidation
 
 `request.body` 已经解析出来了，但是 Schema 还没开始验证。接下来的 Validation 会一起验 `params`、`querystring`、`headers` 和 `body`，不只是 body。
@@ -804,6 +826,16 @@ request
 **使用场景**：
 
 - 对 `request.body` 做一些数据处理，比如：格式转换
+
+比如把邮箱统一成小写，再交给 Schema 验证：
+
+```js
+fastify.addHook('preValidation', async (request) => {
+  if (request.body?.email) {
+    request.body.email = request.body.email.toLowerCase()
+  }
+})
+```
 
 ### preHandler
 
@@ -814,6 +846,17 @@ request
 - 登录认证
 - 权限检测
 - 业务前置检查
+
+比如校验角色。没通过就进不了 Handler：
+
+```js
+fastify.addHook('preHandler', async (request, reply) => {
+  if (request.headers['x-role'] !== 'admin') {
+    reply.code(403)
+    throw new Error('forbidden')
+  }
+})
+```
 
 ### Handler
 
@@ -829,6 +872,18 @@ Handler 业务逻辑处理结果，返回了结果，但还没被序列化成最
 
 不过如果这条路由配了 response schema，序列化是在这个 Hook 之后做的，输出只会留下 schema 里声明的字段。外层的 `code`、`data`、`success` 会被丢掉，所以 schema 要按包好之后的结构来写。
 
+比如把 Handler 返回的数据包一层：
+
+```js
+fastify.addHook('preSerialization', async (request, reply, payload) => {
+  return {
+    code: 0,
+    success: true,
+    data: payload
+  }
+})
+```
+
 ### onSend
 
 最常用的 Hook 之一！！！数据序列化完毕，即将发送数据。
@@ -838,6 +893,15 @@ Handler 业务逻辑处理结果，返回了结果，但还没被序列化成最
 - 统一增加 Response Header
 - 修改最终 `payload`，比如改成 `Buffer`、`stream`
 
+这里的 `payload` 已经是要发出去的最终内容。改了就要把新的返回去，不改就把原来的返回去：
+
+```js
+fastify.addHook('onSend', async (request, reply, payload) => {
+  reply.header('x-request-id', request.id)
+  return payload
+})
+```
+
 ### onResponse
 
 请求生命周期最后一个 Hook，表示数据已经成功发送出去了。
@@ -846,6 +910,14 @@ Handler 业务逻辑处理结果，返回了结果，但还没被序列化成最
 
 - 统计接口耗时。直接读 `reply.elapsedTime` 就行，从 Fastify 收到请求开始计，不用自己在 `onRequest` 打点
 - 上报日志给监控平台
+
+这时响应已经发出去了，不能再改内容：
+
+```js
+fastify.addHook('onResponse', async (request, reply) => {
+  request.log.info({ elapsedTime: reply.elapsedTime }, 'request completed')
+})
+```
 
 ### 生命周期执行顺序
 
