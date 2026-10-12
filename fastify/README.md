@@ -862,6 +862,89 @@ fastify.get('/download', {
 那如果全局和单个路由都定义了同一个生命周期的 Hook，执行顺序是什么样的呢？答：**从外到内**，路由上声明的排在同级最后。
 原因：让公共逻辑先处理，然后再执行这条路由自己的逻辑。当然，并没有绝对的全局。请求链上的 Hook 都遵循 Hook Scope，从外到内执行。后面要学的插件创建了新的 Hook Scope 时，也是这个顺序。
 
+## Decorator
+
+Decorator 这个名字起的不太好，非常让人误以为是装饰器。其实只是给 Fastify 的实例、Request 和 Reply 这 3 个对象赋值的 3 个函数。
+
+**常见使用场景**：
+
+- `decorate(name, value)`：给 Fastify 实例挂整个服务都能用的东西，比如数据库连接 `db`
+- `decorateRequest(name, value)`：给 Request 挂这一次请求才有的数据，比如当前用户 `request.user`
+- `decorateReply(name, value)`：给 Reply 加方法，比如统一返回 `reply.success(data)`
+
+它们的第一个参数必须是字符串。第二个参数呢？
+
+- `decorate`：可以是任何类型，对象也行
+- 函数可以直接传。给 `reply` 加方法就是这样，比如下面的 `success`
+- 对象和数组，`decorateRequest`、`decorateReply` 初始化时不能传，启动就会报错，因为这一个引用会被所有请求共用。字符串用 `''` 占位，对象用 `null` 占位。等请求进来，再给这次请求赋一个新对象，比如 `request.user = { uid, name }`。每次请求都是自己的对象，互不影响
+
+举个小例子：
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify()
+
+// 相当于 fastify.version = '1.0.0'
+fastify.decorate('version', '1.0.0')
+
+// 给 reply 加一个方法。这里的 this 就是 reply
+fastify.decorateReply('success', function (data) {
+  this.send({ code: 0, data })
+})
+```
+
+那为什么要用 `decorate`、`decorateRequest` 和 `decorateReply` 这 3 个方法，直接赋值不行吗？请求对象创建出来之后再临时加字段，对象的形状就变了，引擎对它的优化会失效。所以初始化时先用这 3 个方法把字段占上。同一个封装上下文里，同一个名字再 `decorate` 一次会报错。`request.user = user` 这种后面的赋值，不会做这个检查。
+
+> 注意：`decorate`、`decorateRequest` 和 `decorateReply` 是**初始化**（包括 Plugins 初始化）时调用的方法，**不是动态赋值的方法**。
+
+#### 初始化时赋值
+
+下面这个例子是可以的，因为所有的内容在初始化时就可以确认：
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify()
+
+const db = await createDatabaseConnection()
+
+// 这里可以创建并赋值 db 为数据库对象
+fastify.decorate('db', db)
+fastify.decorateRequest('version', '1.0.0')
+
+fastify.get('/user/:id', async function (request) {
+  // 可以进行 db 的读取
+  const user = await fastify.db.queryUser(request.params.id)
+  // 可以进行 Request 的 version 获取
+  console.log(request.version)
+})
+```
+
+#### 运行时赋值
+
+但如果要赋予的值是动态的，无法在初始化就完成赋值的，`decorateRequest` 的作用就是单纯的声明。当前用户要等请求进来才知道：
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify()
+
+// 用户信息，只有在每次的请求中才能知道当前的用户是谁
+fastify.decorateRequest('user', null)
+
+fastify.addHook('preHandler', async function (request) {
+  const user = await getUserInfo(request.headers.authorization)
+
+  // user 就是 { uid, name } 这样的新对象。不能再用 fastify.decorateRequest('user', user)
+  request.user = user
+})
+
+fastify.get('/user', async function (request) {
+  console.log(request.user)
+})
+```
+
 
 ## Plugin & Encapsulation
 
@@ -901,8 +984,6 @@ fastify.register(userPlugin, {
 
 await fastify.listen({ port: 3000 })
 ```
-
-## Decorator
 
 ## Error Handling
 
