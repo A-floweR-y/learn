@@ -8,6 +8,8 @@ Fastify 的两个标签是 `Fast`（快速） 和 `Low Overhead`（低开销）�
 
 没错，这就是 Fastify 诞生的原因：**Fast and low overhead**。
 
+Fastify 最重要的 3 个部分就是：[**路由**](#route)、[**生命周期 Hooks**](#lifecycle--hooks) 和 [**插件**](#plugin--encapsulation)。
+
 ## 跟 fast-json-stringify 的渊源
 
 你是否还记得有一个项目 [fast-json-stringify](https://github.com/fastify/fast-json-stringify)，通过提前指定 JSON 的数据类型，通过字符串拼接的形式，来让 JSON Stringify 的性能超越 JS 原生的 `JSON.stringify()` 函数。其实 Fastify 的起源就跟这个项目有关，而 Fastify 的 Scheme 就跟这个项目的思路类似。后面我们会提到。
@@ -1020,9 +1022,33 @@ fastify.get('/user', async function (request) {
 
 ## Plugin & Encapsulation
 
-当项目变大，路由、Hook 和公共能力越来越多时，Fastify 如何组织它们，并控制它们的作用范围？这就是 Plugin 存在的意义。
+当项目变大，路由、Hook 和公共能力越来越多时，Fastify 如何组织它们，并控制它们的作用范围？这就是 Plugin 存在的意义。说直白一点：**插件就是用来把代码做模块化的**。
+
+### 注册插件的形式
 
 插件使用 `register` 进行注册，参数是 `fastify.register(plugin, options)`。
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify()
+
+// 插件内容
+async function userPlugin(app, options) {
+  app.get('/users', async () => {
+    return [{ id: 1 }]
+  })
+}
+
+// 注册插件
+fastify.register(userPlugin, {
+  prefix: '/api'
+})
+
+await fastify.listen({ port: 3000 })
+```
+
+请求 `curl http://localhost:3000/api/users`，返回 `[{ "id": 1 }]`。
 
 | 参数 | 含义 |
 | -- | -- |
@@ -1037,25 +1063,7 @@ fastify.get('/user', async function (request) {
 | `logLevel` | 设置这个插件作用域的日志级别。可以是 `fatal`、`error`、`warn`、`info`、`debug`、`trace`、`silent`。不写就跟着外层 logger。 |
 | `logSerializers` | 设置这个插件作用域的日志序列化器，决定某个字段写进日志时长什么样，比如自定义 `req`。后面 Logging 再细说。 |
 
-最简单的例子：
 
-```js
-import Fastify from 'fastify'
-
-const fastify = Fastify()
-
-async function userPlugin(app, options) {
-  app.get('/users', async () => {
-    return [{ id: 1 }]
-  })
-}
-
-fastify.register(userPlugin, {
-  prefix: '/api'
-})
-
-await fastify.listen({ port: 3000 })
-```
 
 ## Error Handling
 
