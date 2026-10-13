@@ -1162,6 +1162,75 @@ fastify.register(async function One(app) {
 await fastify.ready();
 ```
 
+### 插件拥有独立的上下文
+
+```js
+fastify.register(async function (app) {
+  // ...
+})
+```
+
+插件函数的第一个参数 `app` 可以看做是 Fastify 的实例。它有用 Fastify 实例的所有内容，也可以给它使用 `decorate` 来拓展内容。但是它拓展的内容只能自己和自己的子模块能访问，父级模块访问不到。因为它是个独立的上下文。
+
+为证明上面的内容，我们做一个小测试：
+
+```js
+import Fastify from 'fastify';
+
+const fastify = Fastify();
+
+fastify.decorate('root', '1')
+
+fastify.register(async function One(one) {
+  one.decorate('one', 1);
+  console.log('one console root', one.root);
+  console.log('one console one', one.one);
+
+  one.register(async function One(two) {
+    console.log('two console root', two.root);
+    console.log('two console one', two.one);
+  })
+})
+
+await fastify.ready();
+
+console.log('root console root', fastify.root);
+console.log('root console one', fastify.one);
+```
+
+执行结果如下（*增加了换行增加阅读性*）：
+
+```text
+one console root 1
+one console one 1
+
+two console root 1
+two console one 1
+
+root console root 1
+root console one undefined
+```
+
+Fastify 只能向下继承，向上和同级隔离。那 Fastify 是如何做到如此神奇的效果的呢？答案是**原型继承**。类似于下面的例子：
+
+```js
+class Fastify {
+  log(msg) {
+    console.log(msg)
+  }
+}
+
+const fastify = new Fastify()
+
+// 插件里面的实例
+const pluginApp = Object.create(fastify)
+
+pluginApp.log('hello') // 自己没有 log，走原型上的方法
+pluginApp.db = 'local' // 赋值只落在自己身上，fastify.db 还是没有
+```
+
+这样就可以在自己没有方法时去调用原型的方法，但是赋值就只能赋值到自己的实例上。当然 Fastify 内部做了更多其他的处理，这里不多做赘述。
+
 
 
 ## Error Handling
