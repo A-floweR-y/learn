@@ -1063,6 +1063,30 @@ await fastify.listen({ port: 3000 })
 | `logLevel` | 设置这个插件作用域的日志级别。可以是 `fatal`、`error`、`warn`、`info`、`debug`、`trace`、`silent`。不写就跟着外层 logger。 |
 | `logSerializers` | 设置这个插件作用域的日志序列化器，决定某个字段写进日志时长什么样，比如自定义 `req`。后面 Logging 再细说。 |
 
+### 插件 = 模块
+
+```js
+fastify.register(async function (app) {
+  // ...
+})
+```
+
+Fastify 的 `register` 会创建一个独立的上下文，所以可以把插件的内容看成一个单独的模块。当然，插件里面可以继续用 `register` 来创建插件，就相当于插件的子模块。例子如下：
+
+```js
+import Fastify from 'fastify';
+
+const fastify = Fastify();
+
+fastify.register(async function One(one) {
+  // 插件 One，相当于是主入口的一个子模块
+
+  one.register(async function Two(two) {
+    // 插件 Two，相当于是插件 One 的一个子模块
+  })
+})
+```
+
 
 
 ## Error Handling
