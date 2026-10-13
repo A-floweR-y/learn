@@ -1435,7 +1435,38 @@ await app.listen({ port: 3000 })
 | GET /news/economy | economy.js |
 | GET /news/entertainment | entertainment.js |
 
+### 插件中使用 Decorator
 
+前面说过 `decorate`、`decorateRequest` 和 `decorateReply` 是**初始化**（包括 Plugins 初始化）时调用的方法，**不是动态赋值的方法**。
+
+所以在 Plugin 的 register 方法里也可以执行。比如：
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify()
+
+fastify.register(async function (app) {
+  // 插件加载时还在启动阶段，这里声明就行
+  app.decorate('db', db)
+  app.decorateRequest('user', null)
+  app.decorateReply('success', function (data) {
+    this.send({ code: 0, data })
+  })
+
+  app.addHook('preHandler', async (request) => {
+    // 请求进来后再赋值。不能再 decorateRequest
+    const user = await getUserInfo(request.headers.authorization)
+    request.user = user
+  })
+
+  app.get('/user', async function (request, reply) {
+    return reply.success(request.user)
+  })
+})
+
+await fastify.listen({ port: 3000 })
+```
 
 ## Error Handling
 
