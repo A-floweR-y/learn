@@ -1276,6 +1276,165 @@ await fastify.listen({ port: 3000 })
 
 `fastify-plugin` 包装的插件也可以写 `route` 和 `hooks`，但它们同样挂在调用方上，`prefix` 不会生效。主要还是用它来提供公共的能力。
 
+### 插件如何组织代码结构
+
+学了这么多内容，那**插件是如何用模块化思维组织我们的代码结构的呢**？我们来做一个具体的小例子。
+
+#### 业务需求
+
+- 我们的主入口是 `app.js`。
+- 我们有 2 个模块：新闻（`news/index.js`）和 用户（`user.js`）。
+  - 新闻模块分为 3 个子模块：天气（`news/weather.js`）、娱乐（`news/entertainment.js`）和经济（`news/economy.js`）
+- 我们需要提供公共的能力：日期格式化（`formatDate`）
+
+#### 目录结构
+
+```text
+src/
+├── app.js
+├── plugins/
+│   └── common.js
+└── routes/
+    ├── user.js
+    └── news/
+        ├── index.js
+        ├── weather.js
+        ├── economy.js
+        └── entertainment.js
+```
+
+#### 公共方法：src/plugins/common.js
+
+这里用一个简单的 formatDate() 作为公共能力示例。
+
+```js
+import fp from 'fastify-plugin'
+
+async function commonPlugin(app) {
+  app.decorate('formatDate', (date = new Date()) => {
+    return date.toISOString()
+  })
+}
+
+export default fp(commonPlugin)
+```
+
+这里使用 fastify-plugin，让 formatDate 能在注册该插件的父作用域中使用，进而被 /user 和 /news 的路由访问。
+
+#### 用户模块：src/routes/user.js
+
+```js
+export default async function userRoutes(app) {
+  app.get('/', async () => {
+    return {
+      module: 'user',
+      name: 'Alice',
+      createdAt: app.formatDate()
+    }
+  })
+
+  app.get('/:id', async (request) => {
+    return {
+      module: 'user',
+      id: request.params.id,
+      queriedAt: app.formatDate()
+    }
+  })
+}
+```
+
+**注意，这里使用 app.formatDate()，没有重新导入 common.js**。
+
+因为它是通过 Fastify 插件作用域继承得到的能力，而不是普通 JavaScript 函数调用关系。
+
+#### 新闻子模块
+
+这三个模块都是普通 Fastify 插件。它们只需要关心自己的业务，不需要关心父级如何注册它们。
+
+- 天气新闻 `src/routes/news/weather.js`：
+
+```js
+export default async function weatherRoutes(app) {
+  app.get('/', async () => ({
+    category: 'weather',
+    updatedAt: app.formatDate()
+  }))
+}
+```
+
+- 经济新闻 `src/routes/news/economy.js`：
+
+```js
+export default async function economyRoutes(app) {
+  app.get('/', async () => ({
+    category: 'economy',
+    updatedAt: app.formatDate()
+  }))
+}
+```
+
+- 娱乐新闻 `src/routes/news/entertainment.js`：
+
+```js
+export default async function entertainmentRoutes(app) {
+  app.get('/', async () => ({
+    category: 'entertainment',
+    updatedAt: app.formatDate()
+  }))
+}
+```
+
+#### 新闻父模块：src/routes/news/index.js
+
+这部分就是你特别关心的：**子模块的子模块如何引入文件？**
+
+直接使用 ESM 的 import 引入，再通过 app.register() 注册即可。
+
+```js
+import weatherRoutes from './weather.js'
+import economyRoutes from './economy.js'
+import entertainmentRoutes from './entertainment.js'
+
+export default async function newsRoutes(app) {
+  app.register(weatherRoutes, { prefix: '/weather' })
+  app.register(economyRoutes, { prefix: '/economy' })
+  app.register(entertainmentRoutes, { prefix: '/entertainment' })
+}
+```
+
+#### 主入口 src/app.js
+
+```js
+import Fastify from 'fastify'
+
+import commonPlugin from './plugins/common.js'
+import userRoutes from './routes/user.js'
+import newsRoutes from './routes/news/index.js'
+
+const app = Fastify({ logger: true })
+
+// 1. 注册公共能力
+app.register(commonPlugin)
+
+// 2. 注册用户模块
+app.register(userRoutes, { prefix: '/user' })
+
+// 3. 注册新闻模块
+app.register(newsRoutes, { prefix: '/news' })
+
+await app.listen({ port: 3000 })
+```
+
+#### 最终路由
+
+| 请求 | 实际处理模块 |
+| -- | -- |
+| GET /user | user.js |
+| GET /user/124 | user.js |
+| GET /news/weather | weather.js |
+| GET /news/economy | economy.js |
+| GET /news/entertainment | entertainment.js |
+
 
 
 ## Error Handling
