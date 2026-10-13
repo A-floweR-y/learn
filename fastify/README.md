@@ -1087,6 +1087,81 @@ fastify.register(async function One(one) {
 })
 ```
 
+### 插件的执行顺序
+
+我们可以注册多个插件，也可以在插件中注册插件，插件本身又是一个 `async` 异步函数。我们注册完插件后，就立即执行了 `listen`。那我们的插件执行顺序是什么样的呢？
+
+直接说结论：**异步串行，深度优先**。
+
+我们看一下下面的例子。
+
+```js
+import Fastify from 'fastify';
+
+const fastify = new Fastify();
+
+console.log('start')
+
+fastify.register(async function One(app) {
+  console.log('one');
+
+  app.register(async function One1(app1) {
+    console.log('one-1');
+
+    app1.register(async function One11() {
+      // 这里等待 3 秒钟
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      console.log('one-1-1');
+    });
+  });
+});
+
+fastify.register(async function Two() {
+  console.log('two');
+});
+
+fastify.register(async function Three() {
+  console.log('three');
+});
+
+console.log('before listen');
+
+await fastify.listen({ port: 3000 });
+
+console.log('end')
+```
+
+打印结果(*增加了换行增加阅读性*)：
+
+```text
+start
+before listen
+
+one
+one-1
+one-1-1
+
+two
+
+three
+
+end
+```
+
+所以说 `listen` 会等所有插件函数执行完，才开始监听。`register()` 当时只是把插件放进队列，函数还没跑。`ready()` 也是在等这件事，插件执行完它才返回。比如：
+
+```js
+import Fastify from 'fastify';
+
+const fastify = new Fastify();
+
+fastify.register(async function One(app) {
+  // ...
+});
+
+await fastify.ready();
+```
+
 
 
 ## Error Handling
