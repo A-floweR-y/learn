@@ -1231,6 +1231,51 @@ pluginApp.db = 'local' // 赋值只落在自己身上，fastify.db 还是没有
 
 这样就可以在自己没有方法时去调用原型的方法，但是赋值就只能赋值到自己的实例上。当然 Fastify 内部做了更多其他的处理，这里不多做赘述。
 
+### 公共能力如何封装
+
+我们现在知道了 Fastify 的继承原则：**只能向下继承，向上和同级隔离**。所以我们如果要提供一些公共的能力时（比如说数据库、日志等功能），为了让所有的插件都能够调用这些能力，就只能把这些公共的能力放到入口文件的主模块的实例上。这样做也无可厚非，但是如果公共的能力越来越多呢？那主入口的文件就会越来越臃肿。
+
+我们知道模块化的好处就在于职责单一，更方便我们组织出更庞大的逻辑。那如何解决主入口因为公共能力越来越臃肿的问题呢？
+
+#### fastify-plugin
+
+Fastify 提供了一个第三方的 npm 包 `fastify-plugin`。用它包起来的插件不再新建上下文，`decorate` 直接挂在调用方的实例上。
+
+**最小的示例**：
+
+安装：
+
+```bash
+npm install fastify-plugin
+```
+
+使用 `fastify-plugin` 包裹插件：
+
+```js
+import Fastify from 'fastify'
+import fp from 'fastify-plugin'
+
+const fastify = Fastify()
+
+async function utilityPlugin(app) {
+  app.decorate('formatName', (name) => {
+    return `User: ${name}`
+  })
+}
+
+fastify.register(fp(utilityPlugin))
+
+fastify.get('/users', async () => {
+  return {
+    name: fastify.formatName('Alice')
+  }
+})
+
+await fastify.listen({ port: 3000 })
+```
+
+`fastify-plugin` 包装的插件也可以写 `route` 和 `hooks`，但它们同样挂在调用方上，`prefix` 不会生效。主要还是用它来提供公共的能力。
+
 
 
 ## Error Handling
