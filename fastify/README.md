@@ -1470,6 +1470,166 @@ await fastify.listen({ port: 3000 })
 
 ## Error Handling
 
+错误一般有 2 种，**业务逻辑错误** 和 **程序错误**。
+
+### 业务逻辑错误
+
+比如用户请求的资源不存在，这应该是一个逻辑错误，所以就直接返回错误的 HTTP Code 和 错误 Message 即可。
+
+这种错误属于客户端的错误，返回的 Code 为 4xx。例如：
+
+```js
+fastify.get('/users/:id', async (request, reply) => {
+  const user = await findUser(request.params.id)
+
+  if (!user) {
+    return reply.code(404).send({
+      message: 'User not found'
+    })
+  }
+
+  return user
+})
+```
+
+### 程序错误
+
+比如说去执行查询数据库报错、`await` 一个 Promise 返回了 `reject`、或者自己主动执行的 `throw new Error(...)`，这都属于程序错误。
+
+这种错误属于服务器错误，返回的 Code 为 5xx。如果不处理，默认 Fastify 会返回 `500 Internal Server Error`。
+
+#### 全局捕获-程序错误
+
+因为业务错误属于业务范畴内，而程序错误才是真正的错误。如果我们不满足默认的错误处理，或者我们想在程序发生错误时做点事情（增加日志上报），就需要全局捕获程序错误。
+
+##### setErrorHandler
+
+先看一下错误捕获的例子，我们将在发生错误时，进行一个日志的上报：
+
+```js
+fastify.setErrorHandler((error, request, reply) => {
+  request.log.error({ err: error }, 'Request failed')
+
+  // 其他错误：不要把意外错误的内部细节暴露给客户端
+  return reply.code(500).send({
+    statusCode: 500,
+    error: 'Internal Server Error',
+    message: 'Internal Server Error'
+  })
+})
+```
+**error**：捕获到的错误对象，通常包含 `message`、`stack` 等信息。
+
+注意：**错误捕获时一定要返回 HTTP Code，不然会默认返回 200**。
+
+
+##### Schema 校验失败
+
+Scheme 校验失败是不会进入到 Handler 的。而是会直接返回失败。如果要对这个做一个捕获，也是需要 `setErrorHandler`。那怎么来区分是 Scheme 的错误呢？答案是：`error.validation`。
+
+只有 `error.validation` 的标识，就说明是 Scheme 校验失败的错误。例子：
+
+```js
+fastify.setErrorHandler((error, request, reply) => {
+  request.log.error({ err: error }, 'Request failed')
+
+  // 请求参数校验失败
+  if (error.validation) {
+    return reply.code(400).send({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Invalid request data'
+    })
+  }
+
+  // 其他错误：不要把意外错误的内部细节暴露给客户端
+  return reply.code(500).send({
+    statusCode: 500,
+    error: 'Internal Server Error',
+    message: 'Internal Server Error'
+  })
+})
+```
+
+`error.validation` 是个数组，里面有检验的信息。但是**一旦我们设置了 setErrorHandler 的监听，Schema 的校验错误就会走这里**。所以我们针对 Scheme 校验的错误，就需要写清楚到底哪个字段错了。所以建议直接使用 `error.message`。例如：
+
+```js
+fastify.setErrorHandler((error, request, reply) => {
+  if (error.validation) {
+    return reply.code(400).send({
+      statusCode: 400,
+      error: 'Bad Request',
+      // 这里会返回 'age must be integer' 这类的内容
+      message: error.message
+    })
+  }
+})
+```
+
+##### 按模块捕获错误
+
+因为 Fastify 的插件体系可以把不同的业务单独作为一个模块来划分。所以每个模块也可做自己的错误捕获，然后顶级做兜底的错误捕获。因为子模块的错误捕获执行后，父模块的错误捕获将不会再执行。
+
+例如如下：
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify({ logger: true })
+
+// 根应用：通用错误处理
+fastify.setErrorHandler((error, request, reply) => {
+  request.log.error({ err: error })
+
+  return reply.code(500).send({
+    message: 'Internal Server Error'
+  })
+})
+
+// users 模块
+fastify.register(async function usersModule(app) {
+  app.setErrorHandler((error, request, reply) => {
+    if (error.validation) {
+      return reply.code(400).send({
+        message: 'Invalid user data',
+        details: error.validation
+      })
+    }
+
+    request.log.error({ err: error }, 'Users module failed')
+
+    return reply.code(500).send({
+      message: 'Users service error'
+    })
+  })
+
+  app.get('/users', async () => {
+    throw new Error('Database query failed')
+  })
+})
+
+// orders 模块：不设置自己的错误处理器，继承根应用的
+fastify.register(async function ordersModule(app) {
+  app.get('/orders', async () => {
+    throw new Error('Order query failed')
+  })
+})
+
+await fastify.listen({ port: 3000 })
+```
+
+##### setNotFoundHandler
+
+请求不存在的路由，肯定会返回 404。如果你想对 404 的默认错误进行修改的化，可以使用这个函数。例如：
+
+```js
+fastify.setNotFoundHandler((request, reply) => {
+  reply.code(404).send({
+    message: `Route ${request.method}:${request.url} not found`
+  })
+})
+```
+
 ## Logging
 
 ## Testing
