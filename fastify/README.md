@@ -1632,6 +1632,158 @@ fastify.setNotFoundHandler((request, reply) => {
 
 ## Logging
 
+日志对我们服务的稳定性、排查问题来说非常重要。Fastify 默认使用 Pino 输出 JSON 日志。
+
+对于请求日志来说，不需要我们手动添加。Fastify 默认会添加请求日志，前提是我们需要开始日志。开启方式：
+
+```js
+const fastify = new Fastify({
+  // 开启方式
+  logger: true,
+});
+```
+
+再请求服务我们启动服务的终端就会打印出下面这些日志：
+
+```text
+{"level":30,"time":1792040887233,"pid":86221,"hostname":"M-FK4P2WX52R-SH","msg":"Server listening at http://[::1]:3000"}
+{"level":30,"time":1792040887234,"pid":86221,"hostname":"M-FK4P2WX52R-SH","msg":"Server listening at http://127.0.0.1:3000"}
+{"level":30,"time":1792040887680,"pid":86221,"hostname":"M-FK4P2WX52R-SH","reqId":"req-1","req":{"method":"GET","url":"/","host":"127.0.0.1:3000","remoteAddress":"127.0.0.1","remotePort":56465},"msg":"incoming request"}
+{"level":30,"time":1792040887683,"pid":86221,"hostname":"M-FK4P2WX52R-SH","reqId":"req-1","res":{"statusCode":200},"responseTime":2.190040999999951,"msg":"request completed"}
+```
+
+### 日志美化
+
+因为这些日志的可读性比较差，在非生产环境，可以使用 `pnpm add -D pino-pretty` 来做日志美化。例如：
+
+```js
+const fastify = new Fastify({
+  logger: {
+    level: 'info',
+    transport: {
+      target: 'pino-pretty',
+      options: {
+        translateTime: 'SYS:standard',
+        ignore: 'pid,hostname',
+      },
+    },
+  },
+});
+```
+
+输出内容：
+
+```text
+[2026-10-15 13:14:50.742 +0800] INFO: Server listening at http://[::1]:3000
+[2026-10-15 13:14:50.743 +0800] INFO: Server listening at http://127.0.0.1:3000
+[2026-10-15 13:14:51.182 +0800] INFO: incoming request
+    reqId: "req-1"
+    req: {
+      "method": "GET",
+      "url": "/",
+      "host": "127.0.0.1:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 58744
+    }
+[2026-10-15 13:14:51.184 +0800] INFO: request completed
+    reqId: "req-1"
+    res: {
+      "statusCode": 200
+    }
+    responseTime: 1.9719169999999622
+[2026-10-15 13:14:51.185 +0800] INFO: incoming request
+    reqId: "req-2"
+    req: {
+      "method": "GET",
+      "url": "/json/version",
+      "host": "127.0.0.1:3000",
+      "remoteAddress": "127.0.0.1",
+      "remotePort": 58745
+    }
+```
+
+### 输入日志的方式
+
+Fastify 提供了 6 个级别的日志上报方法：
+
+| 日志方法 | 典型用途 |
+| -- | -- |
+| log.fatal() | 致命错误，可能导致服务无法继续运行 |
+| log.error() | 请求失败、数据库异常 |
+| log.warn() | 需要关注但不一定导致失败的情况 |
+| log.info() | 关键业务事件、服务启动信息 |
+| log.debug() | 调试细节 |
+| log.trace() | 更细粒度的诊断信息 |
+
+#### 参数
+
+1. 第一个参数可以是一个 Object，或者是字符串。
+  1. 如果是个字符串，就是当前日志的 msg 字段的值
+  2. 如果是个 Object，就会把 Object 里面的值添加到日志里面
+2. 第二个参数是在第一个参数是 Object 时，设置成 字符串，作为日志里面 msg 字段的值
+
+例如：
+
+```js
+fastify.get('/', async (req, res) => {
+  fastify.log.info('YYY'); // 日志是：{...默认内容, "msg": "yjh error message"}
+  fastify.log.info({ a: 1 }, 'YYY'); // 日志是：{...默认内容, "a": 1, "msg": "yjh error message"}
+  res.send('Hello World');
+});
+```
+
+### 日志级别
+
+日式默认的级别是 `info`。所以 `debug` 和 `trace` 不会输入日志。如果需要输出 `debug` 和 `trace`，需要开更高级的日志。开启方式如下：
+
+```js
+const fastify = new Fastify({
+  logger: {
+    level: 'info'
+  },
+});
+```
+
+日志等级排序表格（输出>=当前优先级的日志）：
+
+| 优先级 | 日志方法 |
+| -- | -- |
+| fatal() | 60 |
+| error() | 50 |
+| warn() | 40 |
+| info() | 30 |
+| debug() | 20 |
+| trace() | 10 |
+
+### request id
+
+每个请求都有一个 `request.id`，用于区分不同的请求。Fastify 会自动生成当前请求的 ID。比如：`{ "reqId":"req-1" }`。如果我们需要用上下游提供的 RequestID（比如需要做全链路），那就需要我们指定请求头。
+
+```js
+const fastify = Fastify({
+  logger: true,
+  requestIdHeader: 'x-request-id',
+})
+```
+
+此时，如果请求包含 x-request-id，Fastify 会使用它作为请求 ID；如果没有，则生成新的 ID。
+
+### 日志的采集和查询
+
+我们不可能在生产环境出了问题时，打开执行我们服务的终端来人肉查日志。所以我们就需要做日志的采集、存储和查询。我比较推荐的路径是：
+
+```text
+Fastify Pino（输出 JSON 日志到 stdout）
+        ↓
+Fluent Bit（做日志采集）
+        ↓
+Elasticsearch（接收、索引、存储日志）
+        ↓
+Kibana（搜索、筛选、分析日志）
+```
+
+当然以后我们也会学习 Fluent Bit、Elasticsearch 和 Kibana。这里先不展开。
+
 ## Testing
 
 ## TypeScript
