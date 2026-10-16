@@ -1889,7 +1889,15 @@ assert.equal(response.statusCode, 200)
 assert.equal(response.body, 'hello')
 ```
 
+### inject 常用的参数
 
+| 参数 | 对应 HTTP |
+| --- | --- |
+| `method` | HTTP Method |
+| `url` | URL |
+| `headers` | HTTP Headers |
+| `query` | Query String |
+| `payload` | Request Body，一般用于 `POST`、`PUT` |
 
 ## TypeScript
 
