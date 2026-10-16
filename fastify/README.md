@@ -1809,6 +1809,86 @@ console.log(response.statusCode) // 200
 console.log(response.json()) // { message: 'Hello World' }
 ```
 
+### Application 与 Server 分离
+
+入口脚本（`main.js`）一般会写成下面这样：
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify()
+
+fastify.get('/', async () => {
+  return 'hello'
+})
+
+await fastify.listen({
+  port: 3000,
+  host: '127.0.0.1'
+})
+
+export default fastify
+```
+
+这时，单元测试文件执行 `import fastify from './main.js'`，`listen` 就会执行，服务已经启动了。
+
+Fastify 官方推荐的做法是：**Application 与 Server 分离**。例如目录结构如下：
+
+```text
+src/
+├── app.js
+└── server.js
+
+test/
+└── app.test.js
+```
+
+`app.js` 只负责创建和配置 Fastify 应用：
+
+```js
+import Fastify from 'fastify'
+
+export function buildApp() {
+  const fastify = Fastify()
+
+  fastify.get('/', async () => {
+    return 'hello'
+  })
+
+  return fastify
+}
+```
+
+`server.js` 负责启动服务器：
+
+```js
+import { buildApp } from './app.js'
+
+const fastify = buildApp()
+
+await fastify.listen({
+  port: 3000,
+  host: '127.0.0.1'
+})
+```
+
+`app.test.js`：
+
+```js
+import assert from 'node:assert/strict'
+import { buildApp } from '../src/app.js'
+
+const fastify = buildApp()
+
+const response = await fastify.inject({
+  method: 'GET',
+  url: '/'
+})
+
+assert.equal(response.statusCode, 200)
+assert.equal(response.body, 'hello')
+```
+
 
 
 ## TypeScript
