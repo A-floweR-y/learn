@@ -1786,6 +1786,31 @@ Kibana（搜索、筛选、分析日志）
 
 ## Testing
 
+写完服务要做单元测试时，不需要先启动服务、再发一个 HTTP 请求。Fastify 提供了 `fastify.inject()`。它会模拟一次 HTTP 请求，走路由、钩子、校验和序列化，但不会监听端口。例如：
+
+```js
+import Fastify from 'fastify'
+
+const fastify = Fastify()
+
+fastify.get('/hello', async () => {
+  return {
+    message: 'Hello World'
+  }
+})
+
+const response = await fastify.inject({
+  method: 'GET',
+  url: '/hello'
+})
+
+console.log(response.statusCode) // 200
+// handler 返回对象时，response.body 是 JSON 字符串
+console.log(response.json()) // { message: 'Hello World' }
+```
+
+
+
 ## TypeScript
 
 ## 工程化与实际项目
