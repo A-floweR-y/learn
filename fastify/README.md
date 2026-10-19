@@ -1911,6 +1911,156 @@ assert.equal(response.body, 'hello')
 
 实际开发里，我们常用 TS 做类型检查。Fastify 的 API，以及 Request、Reply 这些对象，都自带类型声明。框架这一侧不用再写，要补的是业务自己的类型，比如请求参数和响应体。
 
+### Route 中的 TS
+
+我们可以使用 route<T> 的泛型来做当前 Route 的 TS 类型编写。比如：
+
+```ts
+fastify.get<{
+  Params: {
+    id: string
+  }
+}>('/users/:id', async (request, reply) => {
+  request.params.id
+})
+```
+
+Route 的泛型分别支持以下内容：
+
+| 类型 | 含义 |
+| --- | --- |
+| `Params` | 路径参数 |
+| `Querystring` | Query 参数 |
+| `Body` | 请求 Body |
+| `Headers` | 请求 Headers |
+| `Reply` | 响应 |
+
+#### Schema & TS
+
+我们前面说过，Fastify 的数据校验需要通过 Schema 来做。此时我们还需要 TS 来对 Route 做类型的校验。内容如下：
+
+```ts
+type CreateUser = {
+  name: string
+  age: number
+}
+
+fastify.post<{
+  Body: CreateUser
+}>('/users', {
+  schema: {
+    body: {
+      type: 'object',
+      required: ['name', 'age'],
+      properties: {
+        name: { type: 'string' },
+        age: { type: 'integer' }
+      }
+    }
+  }
+}, async (request) => {
+ // ...
+})
+```
+
+这个例子我们会发现 `schema` 用来描述 `body` 的数据结构，TS 的 `CreateUser` 也用来描述 `body` 的数据结构，这就导致我们同一个数据结构写了2次。这当前没问题。但是，维护起来我们就需要同时维护两份，保证它俩的内容一致，这就会带来一定的维护负担。
+
+Fastify 提供了3个解决方案：TypeBox、json-schema-to-ts 和 Zod。这里我只推荐 **TypeBox + Provider**。
+
+##### TypeBox
+
+TypeBox 其实就是一个 **JSON Schema 构建起**，因为 JSON Schema 的结构比较复杂，手动维护起来比较麻烦。所以 TypeBox 可以简化这个过程。我们看一下下面的两个等级的对比：
+
+```ts
+// JSON Schema 版本
+fastify.post('/users', {
+  schema: {
+    body: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        age: { type: 'integer' },
+        role: {
+          type: 'string',
+          enum: ['admin', 'user']
+        }
+      },
+      required: ['name', 'age']
+    }
+  }
+}
+
+// TypeBox 版本
+fastify.post('/users', {
+  schema: {
+    // Type.Object 里写出的字段默认就是必填，所以不需要 required
+    body: Type.Object({
+      name: Type.String(),
+      age: Type.Integer()
+    })
+  }
+}
+```
+
+你会发现它定义 Schema 会非常的简单。所以我们工作中可以直接用 TypeBox 来写 Schema。
+
+##### TypeBox + TS
+
+那 TypeBox 是如何跟 TS 来结合的呢？TypeBox 提供了 `Static` 类型来推到出 ts 的类型。比如：
+
+```ts
+import { Type, type Static } from 'typebox'
+
+const UserSchema = Type.Object({
+  name: Type.String(),
+  age: Type.Integer()
+})
+
+type User = Static<typeof UserSchema> // 推到结果为：type User = { name: string, age: number }
+```
+
+使用 TypeBox：
+
+```ts
+fastify.post<{ body: User }>('/users', {
+  schema: {
+    body: UserSchema
+  }
+}
+```
+
+虽然我们现在使用时，只需要维护1份。但是我们写的时候，还是要给 Schema 指定 JSON Schema 后，再给 Route 的泛型赋予 TS 类型。那有没有更方便的办法呢？
+
+##### TypeBox + Provider
+
+首先我们需要安装 `npm install typebox @fastify/type-provider-typebox`。然后代码如下：
+
+```ts
+import Fastify from 'fastify'
+import {
+  // 这里的 Type 就是 TypeBox 的 Type 对象
+  Type,
+  TypeBoxTypeProvider
+} from '@fastify/type-provider-typebox'
+
+// 使用 Type Provider
+const fastify = Fastify().withTypeProvider<TypeBoxTypeProvider>()
+
+fastify.post('/users', {
+  schema: {
+    body: Type.Object({
+      name: Type.String(),
+      age: Type.Integer()
+    })
+  }
+}, async (request, reply) => {
+  // ...
+})
+```
+
+我们现在只需要构建一个 JSON Schema 就行了，连 TypeBox 的 `Static` 都省掉了。Fastify 会根据我们定义的 Schema，自动去推到出 TS 的类型。
+
+
 
 ## 工程化与实际项目
 
