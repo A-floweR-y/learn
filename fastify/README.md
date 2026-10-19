@@ -1909,6 +1909,9 @@ assert.equal(response.body, 'hello')
 
 ## TypeScript
 
+实际开发里，我们常用 TS 做类型检查。Fastify 的 API，以及 Request、Reply 这些对象，都自带类型声明。框架这一侧不用再写，要补的是业务自己的类型，比如请求参数和响应体。
+
+
 ## 工程化与实际项目
 
 - 身份认证与授权
