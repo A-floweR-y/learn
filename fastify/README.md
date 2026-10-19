@@ -12,7 +12,7 @@ Fastify 最重要的 3 个部分就是：[**路由**](#route)、[**生命周期 
 
 ## 跟 fast-json-stringify 的渊源
 
-你是否还记得有一个项目 [fast-json-stringify](https://github.com/fastify/fast-json-stringify)，通过提前指定 JSON 的数据类型，通过字符串拼接的形式，来让 JSON Stringify 的性能超越 JS 原生的 `JSON.stringify()` 函数。其实 Fastify 的起源就跟这个项目有关，而 Fastify 的 Scheme 就跟这个项目的思路类似。后面我们会提到。
+你是否还记得有一个项目 [fast-json-stringify](https://github.com/fastify/fast-json-stringify)，通过提前指定 JSON 的数据类型，通过字符串拼接的形式，来让 JSON Stringify 的性能超越 JS 原生的 `JSON.stringify()` 函数。其实 Fastify 的起源就跟这个项目有关，而 Fastify 的 Schema 就跟这个项目的思路类似。后面我们会提到。
 
 ## 最简单的小例子
 
@@ -467,7 +467,7 @@ Response Schema 有一个非常重要的安全价值：**只返回 Schema 指定
 
 ### $ref
 
-对于一些公共的 Schema 字段，如果我们每个 Route 都自己写，那重复了会非常大。有没有什么方式可以定义公共的 Scheme，然后引用这些内容呢。答案是：`fastify.addSchema()` 和 `$ref`。
+对于一些公共的 Schema 字段，如果我们每个 Route 都自己写，那重复了会非常大。有没有什么方式可以定义公共的 Schema，然后引用这些内容呢。答案是：`fastify.addSchema()` 和 `$ref`。
 
 #### addSchema
 
@@ -501,7 +501,7 @@ fastify.get('/user', {
 ```
 
 你会发现后面有个 `#`。为什么？因为 `$ref` 遵循 JSON Schema 的 URI Reference 语义...够了，你就当这是必须的格式。
-把咱们定义的 Scheme 看成一个目录，而 `#` 表示根目录。我们可以通过 `User#/properties/name` 来做局部引用的。
+把咱们定义的 Schema 看成一个目录，而 `#` 表示根目录。我们可以通过 `User#/properties/name` 来做局部引用的。
 
 ### Schema 关键字
 
@@ -525,7 +525,7 @@ fastify.get('/user', {
 - `type: 'string'`，我们拿到的类型就是 String。
 - `type: 'integer'`，我们拿到的类型就是 Number。
 
-因为字符在通过校验后，会尝试按照 Scheme 进行转换，我们最终获得的值是转换过后的值。
+因为字符在通过校验后，会尝试按照 Schema 进行转换，我们最终获得的值是转换过后的值。
 
 #### Object 相关
 
@@ -591,7 +591,7 @@ Object 里允许不允许出现 Schema 没声明的属性。`false` 是不允许
 | `email` | 邮箱地址 | `user@example.com` |
 | `date` | 日历日期，`YYYY-MM-DD`（RFC 3339 `full-date`） | `2026-09-23` |
 | `date-time` | 带时区的时间戳（RFC 3339 `date-time`），一般要有 `Z` 或 `±hh:mm` | `2026-09-23T18:54:00+08:00` |
-| `uri` | 绝对 URI，必须带 scheme | `https://example.com/a` |
+| `uri` | 绝对 URI，必须带 schema | `https://example.com/a` |
 | `uri-reference` | URI 引用，绝对、相对路径都可以 | `/users/1`、`https://example.com` |
 | `ipv4` | IPv4 地址 | `192.168.1.1` |
 | `ipv6` | IPv6 地址 | `2001:db8::1` |
@@ -699,7 +699,7 @@ fastify.post('/orders', {
 
 ### schema 管线图
 
-我们会发现 Scheme 不论是在请求的时候，还是在响应的时候，都要经过它这层逻辑。下面画了一个简单的 Schema 管线图：
+我们会发现 Schema 不论是在请求的时候，还是在响应的时候，都要经过它这层逻辑。下面画了一个简单的 Schema 管线图：
 
 ```text
                   HTTP Request
@@ -726,6 +726,14 @@ fastify.post('/orders', {
                        ↓
                  HTTP Response
 ```
+
+### JSON Schema
+
+Fastify 用到的 Schema 是一份跨语言的规范，叫 **JSON Schema**。它用 JSON 描述一份 JSON 数据：有哪些字段、什么类型、哪些必填。
+
+第一份公开草案是 2009 年 12 月 Kris Zyp 提交的 IETF Internet-Draft（`draft-zyp-json-schema-00`）。这些草案后来过期了，核心规范没有被 IETF 批准成 RFC。现在的版本由 [json-schema.org](https://json-schema.org) 维护，常见的有 `draft-04`、`draft-07`、`2019-09` 和 `2020-12`。Fastify 的示例和默认校验用的是 [JSON Schema Draft 7](https://json-schema.org/draft-07)。
+
+各语言都有自己的实现，所以同一份 Schema 可以在不同语言里做校验。
 
 ## Lifecycle & Hooks
 
@@ -1525,9 +1533,9 @@ fastify.setErrorHandler((error, request, reply) => {
 
 ##### Schema 校验失败
 
-Scheme 校验失败是不会进入到 Handler 的。而是会直接返回失败。如果要对这个做一个捕获，也是需要 `setErrorHandler`。那怎么来区分是 Scheme 的错误呢？答案是：`error.validation`。
+Schema 校验失败是不会进入到 Handler 的。而是会直接返回失败。如果要对这个做一个捕获，也是需要 `setErrorHandler`。那怎么来区分是 Schema 的错误呢？答案是：`error.validation`。
 
-只有 `error.validation` 的标识，就说明是 Scheme 校验失败的错误。例子：
+只有 `error.validation` 的标识，就说明是 Schema 校验失败的错误。例子：
 
 ```js
 fastify.setErrorHandler((error, request, reply) => {
@@ -1551,7 +1559,7 @@ fastify.setErrorHandler((error, request, reply) => {
 })
 ```
 
-`error.validation` 是个数组，里面有检验的信息。但是**一旦我们设置了 setErrorHandler 的监听，Schema 的校验错误就会走这里**。所以我们针对 Scheme 校验的错误，就需要写清楚到底哪个字段错了。所以建议直接使用 `error.message`。例如：
+`error.validation` 是个数组，里面有检验的信息。但是**一旦我们设置了 setErrorHandler 的监听，Schema 的校验错误就会走这里**。所以我们针对 Schema 校验的错误，就需要写清楚到底哪个字段错了。所以建议直接使用 `error.message`。例如：
 
 ```js
 fastify.setErrorHandler((error, request, reply) => {
