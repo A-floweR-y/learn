@@ -2061,6 +2061,19 @@ fastify.post('/users', {
 我们现在只需要构建一个 JSON Schema 就行了，连 TypeBox 的 `Static` 都省掉了。Fastify 会根据我们定义的 Schema，自动去推到出 TS 的类型。
 
 
+### decorate 中的 TS
+
+`decorate` 是给实例提供新的内容，但是ts 并不知道我们给实例提供了哪些内容。所以 `decorate` 添加的内容需要使用 TS 的 `declare` 来拓展声明。例子如下：
+
+```ts
+fastify.decorate('db', db);
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    db: Database
+  }
+}
+```
 
 ## 工程化与实际项目
 
