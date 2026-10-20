@@ -2106,7 +2106,79 @@ declare module 'fastify' {
 | `FastifyRequest` | 给 Request 拓展类型 |
 | `FastifyRetry` | 给 Retry 拓展类型 |
 
+#### Fastify.getDecorator<T>() & Fastify.setDecorator<T>()
 
+我们使用 `declare module 'fastify' {}` 时，是 TS 全局都拓展了某个属性。但如果我们正常应该是通过 Plugin 来做模块的区分。比如我们只有 User 模块的 Request 对象才有 `user` 对象。这是个时候可以用 `setDecorator` 赋值， `getDecorator` 取值。例子如下：
+
+```ts
+import type { FastifyPluginAsync } from 'fastify'
+
+// User 类型
+type User = {
+  id: string
+  name: string
+}
+
+const userPlugin: FastifyPluginAsync = async (fastify) => {
+  // 声明 request 上的装饰器
+  fastify.decorateRequest('user', null)
+
+  fastify.addHook('preHandler', async (request) => {
+    // 设置 user 内容
+    request.setDecorator<User>('user', {
+      id: 'u_123',
+      name: 'Alice'
+    })
+  })
+
+  fastify.get('/profile', async (request) => {
+    // 获取 user 内容
+    const user = request.getDecorator<User>('user')
+    return {
+      id: user.id,
+      name: user.name
+    }
+  })
+}
+
+export default userPlugin
+```
+
+那如果我不想用 `request.getDecorator<T></T>`，我就想用 `request.user` 该怎么办呢？可以用，但不建议用。因为需要各种 as 转换，比较麻烦。这里也说一下思路：
+
+```ts
+import type { FastifyPluginAsync } from 'fastify'
+
+// User 类型
+type User = {
+  id: string
+  name: string
+}
+
+// User 模块的专属 Request 对象
+type UserModuleRequest = FastifyRequest & {
+  user: User
+}
+
+function getUserOrders(request: UserModuleRequest) {
+  const userId = request.user.id
+
+  return {
+    userId,
+    orders: []
+  }
+}
+
+const orderPlugin: FastifyPluginAsync = async (fastify) => {
+  fastify.get('/orders', async (request) => {
+    // 这里的 request 原本是 Fastify 推导出来的类型。
+    // 如果已通过认证并能保证存在 user，才适合将它传给 getUserOrders。
+    return getUserOrders(request as UserModuleRequest)
+  })
+}
+
+export default orderPlugin
+```
 
 ## 工程化与实际项目
 
