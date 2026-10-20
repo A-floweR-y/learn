@@ -2082,6 +2082,30 @@ const dbPlugin: FastifyPluginAsync<DbPluginOptions> = async (
 export default dbPlugin
 ```
 
+`DbPluginOptions` 里面包含 Fastify 的 Plugin Options 默认支持的 3 个参数：`prefix`、`logLevel` 和 `logSerializers`。 如果不需要，就不需要使用 `DbPluginOptions & { connectionString: string }`。
+
+#### decorate 中的 TS
+
+`decorate` 是给实例提供新的内容，但是ts 并不知道我们给实例提供了哪些内容。所以 `decorate` 添加的内容需要使用 TS 的 `declare` 来拓展声明。例子如下：
+
+```ts
+fastify.decorate('db', db);
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    db: Database
+  }
+}
+```
+
+需要使用 `declare` 来拓展声明的字段：
+
+| 类型 | 说明 |
+| -- | -- |
+| `FastifyInstance` | 给实例拓展类型 |
+| `FastifyRequest` | 给 Request 拓展类型 |
+| `FastifyRetry` | 给 Retry 拓展类型 |
+
 
 
 ## 工程化与实际项目
