@@ -2062,19 +2062,27 @@ fastify.post('/users', {
 
 ### Plugin 使用 TypeScript
 
-#### decorate 中的 TS
-
-`decorate` 是给实例提供新的内容，但是ts 并不知道我们给实例提供了哪些内容。所以 `decorate` 添加的内容需要使用 TS 的 `declare` 来拓展声明。例子如下：
+因为我们的插件是一个函数，且这个函数还有2个参数。为了让 TS 知道这个函数是一个 Fastify 的 Plugin，所以需要使用 Fastify 导出的 `FastifyPluginAsync`。例子如下：
 
 ```ts
-fastify.decorate('db', db);
+import type { FastifyPluginAsync, DbPluginOptions } from 'fastify'
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    db: Database
-  }
+// 指定插件的参数
+type DbPluginOptions = DbPluginOptions & {
+  connectionString: string
 }
+
+const dbPlugin: FastifyPluginAsync<DbPluginOptions> = async (
+  fastify,
+  options
+) => {
+  // ...
+}
+
+export default dbPlugin
 ```
+
+
 
 ## 工程化与实际项目
 
