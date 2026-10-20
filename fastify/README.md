@@ -1911,7 +1911,7 @@ assert.equal(response.body, 'hello')
 
 实际开发里，我们常用 TS 做类型检查。Fastify 的 API，以及 Request、Reply 这些对象，都自带类型声明。框架这一侧不用再写，要补的是业务自己的类型，比如请求参数和响应体。
 
-### Route 中的 TS
+### Route 使用 TypeScript
 
 我们可以使用 route<T> 的泛型来做当前 Route 的 TS 类型编写。比如：
 
@@ -2060,8 +2060,9 @@ fastify.post('/users', {
 
 我们现在只需要构建一个 JSON Schema 就行了，连 TypeBox 的 `Static` 都省掉了。Fastify 会根据我们定义的 Schema，自动去推到出 TS 的类型。
 
+### Plugin 使用 TypeScript
 
-### decorate 中的 TS
+#### decorate 中的 TS
 
 `decorate` 是给实例提供新的内容，但是ts 并不知道我们给实例提供了哪些内容。所以 `decorate` 添加的内容需要使用 TS 的 `declare` 来拓展声明。例子如下：
 
