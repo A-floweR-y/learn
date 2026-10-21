@@ -2233,6 +2233,23 @@ src/
 - `server.ts` 用 `buildApp` 实例化和 `listen` 端口。
 - `app.test.ts` 用 `buildApp` 实例化和写单元测试。
 
+### 配置与环境变量
+
+因为很多时候我们并不知道端口是否被占用，所以需要部署方来指定端口。或者不知道数据库在不同环境的地址，需要部署方来指定。又或者有一些敏感的秘钥，我们不能直接写在代码里。这时候就需要用到环境变量了。
+
+在 NodeJS 中我们通过 `process.env` 来读取环境变量。所以我们可以在 `src` 单独创建一个 `config.ts` 用来导出各种环境变量。例如：
+
+```ts
+// src/config.ts
+
+export const PORT = process.env.PORT;
+export const DB_HOST = process.env.DB_HOST;
+```
+
+这么做的好处就是简单。但是我非常建议使用 `@fastify/env` 来做环境变量的管理。
+
+
+
 - 身份认证与授权
 - 数据库接入
 - 配置与环境变量
