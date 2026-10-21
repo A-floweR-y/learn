@@ -2329,7 +2329,13 @@ const envPlugin: FastifyPluginAsync = async (app) => {
 export default fp(envPlugin)
 ```
 
+#### 如何注入环境变量
 
+当我们在不同环境测试和部署我们的应用时，手动去赛一个 env 文件进去肯定不合适。最简单和最推荐的方式还是在执行环境注入环境变量，然后再运行应用。例如：
+
+```bash
+PORT=8080 NODE_ENV=production node dist/server.js
+```
 
 - 身份认证与授权
 - 数据库接入
