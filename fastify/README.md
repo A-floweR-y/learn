@@ -2248,6 +2248,87 @@ export const DB_HOST = process.env.DB_HOST;
 
 这么做的好处就是简单。但是我非常建议使用 `@fastify/env` 来做环境变量的管理。
 
+#### @fastify/env
+
+`@fastify/env` 跟 `fastify-plugin` 类似，可以把内容挂载到调用方的实例上，这样我们就可以把环境变量挂在根实例上。举一个使用例子：
+
+```ts
+import fp from 'fastify-plugin'
+import fastifyEnv from '@fastify/env'
+import type { FastifyPluginAsync } from 'fastify'
+
+const schema = {
+  type: 'object',
+  required: ['PORT', 'HOST'],
+  properties: {
+    PORT: {
+      type: 'number',
+      default: 3000
+    },
+    HOST: {
+      type: 'string',
+      default: '0.0.0.0'
+    }
+  },
+  additionalProperties: false
+} as const
+
+const envPlugin: FastifyPluginAsync = async (app) => {
+  await app.register(fastifyEnv, {
+    // 指定实例上的 key
+    confKey: 'config',
+    // 提供描述环境变量的 Schema
+    schema,
+    // 指定是否可以读取本地的 .env 文件
+    dotenv: true
+  })
+}
+
+export default fp(envPlugin)
+```
+
+这样我们就可以使用 `app.config.PORT` 来访问环境变量了。当然 TS 是不知道 `config` 的类型的，所以还需要 `declare` 来拓展 `config` 的类型：
+
+```ts
+import 'fastify'
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    config: {
+      PORT: number
+      HOST: string
+    }
+  }
+}
+```
+
+##### 使用 TypeBox 编写 Schema
+
+如果觉得手动编写 `@fastify/env` 的环境变量 Schema 比较麻烦，可以直接使用前面说的 TypeBox 来编写，会简单很多：
+
+```ts
+import fp from 'fastify-plugin'
+import fastifyEnv from '@fastify/env'
+import { Type } from 'typebox'
+import type { FastifyPluginAsync } from 'fastify'
+
+// 只需要 2 行代码
+const schema = Type.Object({
+  PORT: Type.Number({ default: 3000 }),
+  HOST: Type.String({ default: '0.0.0.0' })
+})
+
+const envPlugin: FastifyPluginAsync = async (app) => {
+  await app.register(fastifyEnv, {
+    confKey: 'config',
+    schema,
+    dotenv: true
+  })
+}
+
+export default fp(envPlugin)
+```
+
 
 
 - 身份认证与授权
