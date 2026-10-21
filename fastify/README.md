@@ -2184,7 +2184,54 @@ export default orderPlugin
 
 以上我们已经学会了 Fastify 比较常用的 API。现在我们学习的是在真实的项目中，我们如何来使用这些 API。
 
+### 项目结构与模块边界
 
+为什么我们需要划分项目结构和模块？因为我们如果把所有的逻辑写在一起会有以下问题：
+- **职责混杂**。路由定义、参数处理、业务规则和数据组织全部写在一起，修改某个功能时容易影响其他代码。
+- **模块之间的依赖不清楚**。用户模块可能依赖订单模块的实现细节，导致功能难以独立修改和测试。
+- **Fastify 作用域概念消失**。即使文件拆开了，某个 Plugin 注册的 Decorator、Hook 或路由，也不一定对其他模块可见。
+
+根据以上问题，以及后期的项目的可维护性，我们将拆分一下内容：
+
+#### 项目目录介绍
+
+|部分	|主要负责什么|	不应该承担什么|
+|--	|--|	--|
+| `server.ts`	|监听端口、启动和关闭服务|实现业务规则|
+| `app.ts`	|创建 Fastify 实例、注册公共插件和业务模块|堆积所有路由处理代码|
+| `plugins/`	|注册公共能力、建立模块边界|成为所有业务代码的杂物箱|
+| `modules/*/routes.ts`	|定义 URL、HTTP 方法、Schema 和请求处理入口|塞入大量复杂业务流程|
+| `modules/*/service.ts`	|实现业务逻辑|直接负责 URL 匹配和 HTTP 路由注册|
+| `modules/*/types.ts`	|导出模块需要共享的类型|代替运行时数据校验|
+
+#### 项目目录结构：
+
+```text
+src/
+├── app.ts
+├── server.ts
+│
+├── plugins/
+│   └── index.ts
+│
+└── modules/
+    ├── users/
+    │   ├── index.ts
+    │   ├── routes.ts
+    │   ├── service.ts
+    │   └── types.ts
+    │
+    └── orders/
+        ├── index.ts
+        ├── routes.ts
+        ├── service.ts
+        └── types.ts
+```
+
+**app.ts 说明**：
+- `app.ts` 导出来的是 `buildApp` 的一个函数。
+- `server.ts` 用 `buildApp` 实例化和 `listen` 端口。
+- `app.test.ts` 用 `buildApp` 实例化和写单元测试。
 
 - 身份认证与授权
 - 数据库接入
