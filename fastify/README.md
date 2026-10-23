@@ -2338,11 +2338,11 @@ export default fp(envPlugin)
 PORT=8080 NODE_ENV=production node dist/server.js
 ```
 
-### 身份认证 & 授权
+### 身份认证 & 权限
 
 因为 http 是无状态的。用户登录后请求另一个接口，这个被请求的接口其实是不知道用户已经登录的。所以就需要记住用户的登录状态，这就是身份认证。
 
-如果我们的系统是分角色权限，有些接口需要有权限的用户才能调用。比如：删除接口。这就是授权。
+如果我们的系统是分角色权限，有些接口需要有权限的用户才能调用。比如：删除接口。这就是权限。
 
 #### 身份认证
 
@@ -2446,7 +2446,36 @@ const userPlugin: FastifyPluginAsync = async (app) => {
 }
 ```
 
+#### 权限
 
+因为有些接口只有有权限的用户才能操作。所以我们不需要给整个模块都增加这个检测，只针对特殊的 Route 做这个处理即可。我们依旧用 User 模块举例：
+
+```ts
+import type { FastifyPluginAsync } from 'fastify'
+
+const userPlugin: FastifyPluginAsync = async (app) => {
+  app.addHook('preHandler', async function (request, reply) {
+    // 统一的验证逻辑
+  })
+
+  app.get('/info', async function (request, reply) {
+    // 用户信息接口，任何用户都有权限
+  })
+
+  app.delete('/users/:id', {
+    preHandler: async function (request, reply) {
+      // 删除用户，只有 admin 有权限。jwt 的 payload 会挂在 request.user 上
+      if (request.user.role !== 'admin') {
+        return reply.code(403).send({
+          message: 'Forbidden'
+        })
+      }
+    }
+  }, async function (request, reply) {
+    // 删除用户的业务逻辑
+  })
+}
+```
 
 
 - 数据库接入
