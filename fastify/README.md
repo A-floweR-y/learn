@@ -2344,6 +2344,109 @@ PORT=8080 NODE_ENV=production node dist/server.js
 
 如果我们的系统是分角色权限，有些接口需要有权限的用户才能调用。比如：删除接口。这就是授权。
 
+#### 身份认证
+
+身份认证一般有 2 种方式：**Session + cookie** 和 **Token**。
+
+##### Session + cookie
+
+Session 就是用户调用登录接口成功后，服务端生成一个唯一的会话标识，然后把这个标识对应的 userId 来保存下来。然后用 `set-cookie` 响应头把 SessionID 设置到 Cookie 中，并设置上 `http only`。
+
+但是它有个问题。就是如果是服务器集群时，就需要把 SessionID 保存到一个统一的地方（比如： Redis）。要不然一个服务器登录了，其他的请求打到另一个服务器时没有用户的登录状态。
+
+##### Token
+
+Token 就是用户调用登录接口成功后，服务端会用用户的标识（例如：userId）来生成一个Token。注意：这个 Token 是可以还原出用户的信息的。所以，为了安全需要服务器使用加密手段。密钥要保存在环境变量中。
+如果是服务器集群，也可以都使用同一个 env 文件来访问同一个密钥。
+
+##### JWT
+
+常用的 Token 方案是 JWT。JWT 负责签名，然后服务器来对签名加密，发送给客户端。客户端再通过 cookie 或者 Request Header `Authorization: Bearer <token>` 的形式传给服务器。
+
+关于 JWT 我们这里暂时不多说。后面有可能会开一个新的入口来说一下。所以我们只需要了解在 Fastify 里面如何使用 JWT。
+
+###### @fastify/jwt
+
+安装：`npm install @fastify/jwt`。
+
+使用：
+
+```ts
+import fp from 'fastify-plugin'
+import jwt from '@fastify/jwt'
+import type { FastifyPluginAsync } from 'fastify'
+
+const authPlugin: FastifyPluginAsync = async (app) => {
+  await app.register(jwt, {
+    // 这里是使用 @fastify/env 来注入到 app.config 上面的。就是我们上面【环境变量】学习的东西
+    secret: app.config.JWT_SECRET
+  })
+}
+
+// 注意：这里使用 fastify-plugin 导出的
+export default fp(authPlugin)
+```
+
+###### 签名
+
+`reply.jwtSign(payload, options?)` 用来签名。
+
+**参数**：
+
+| 参数 | 必填 | 内容 |
+| --- | --- | --- |
+| `payload` | 是 | 放进 JWT 的声明数据。里面的字段验证后会挂到 `request.user` |
+| `payload.sub` | 否 | 用户标识，一般是 userId |
+| `payload.role` | 否 | 自定义字段，表示用户角色 |
+| `options` | 否 | 控制签名方式、有效期等 |
+| `options.expiresIn` | 否 | 多久后过期，如 `'15m'`、`'1h'`、`'7d'` |
+| `options.notBefore` | 否 | 从什么时候开始有效，时间写法和 `expiresIn` 一样 |
+| `options.issuer` | 否 | 签发者，对应声明 `iss` |
+| `options.audience` | 否 | 受众，对应声明 `aud` |
+| `options.subject` | 否 | 主体，对应声明 `sub` |
+| `options.algorithm` | 否 | 签名算法，如 `'HS256'` |
+
+其实上面的参数主要用的就是：
+
+```ts
+const token = await reply.jwtSign(
+  // xxxx 是 userId
+  // 如果你不喜欢 sub，可以直接自定义。比如：{ userId: 'xxxx' }
+  { sub: 'xxxx' },
+  // 15分钟过期
+  { expiresIn: '15m' },
+)
+```
+
+注意：**`payload` 里面传的参数，都会挂载到 `request.user` 对象上**。
+
+###### 验证
+
+验证就是用的是 `request.jwtVerify()`。一般我们是整个模块都需要验证用户是否登录，所以就会给整个模块来添加 Hooks 来验证。我们在 **生命周期** 里面说过，最适合放验证的是 `preHandler` hook。所以，例子如下：
+
+```ts
+import type { FastifyPluginAsync } from 'fastify'
+
+const userPlugin: FastifyPluginAsync = async (app) => {
+  app.addHook('preHandler', async function (request, reply) {
+    try {
+      // 执行验证
+      await request.jwtVerify()
+    } catch {
+      // 验证失败逻辑
+      return reply.code(401).send({
+        message: 'Unauthorized'
+      })
+    }
+  })
+
+  app.get('/info', async function (request, reply) {
+    // 单纯的业务逻辑
+  })
+}
+```
+
+
 
 
 - 数据库接入
