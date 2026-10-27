@@ -2356,14 +2356,43 @@ Session 就是用户调用登录接口成功后，服务端生成一个唯一的
 
 ##### Token
 
-Token 就是用户调用登录接口成功后，服务端会用用户的标识（例如：userId）来生成一个Token。注意：这个 Token 是可以还原出用户的信息的。所以，为了安全需要服务器使用加密手段。密钥要保存在环境变量中。
-如果是服务器集群，也可以都使用同一个 env 文件来访问同一个密钥。
+Token 是一种凭证或令牌的通用概念。用户登录后，接口返回凭证给客户端。客户端提交请求时会携带这个凭证来这名自己的身份。当然这个身份是有可能伪造的，所以服务端收到这个凭证后会先进行验证。
 
 ##### JWT
 
-常用的 Token 方案是 JWT。JWT 负责签名，然后服务器来对签名加密，发送给客户端。客户端再通过 cookie 或者 Request Header `Authorization: Bearer <token>` 的形式传给服务器。
+JWT 的 Token 通常长这样：`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzAwMSIsInJvbGUiOiJ1c2VyIn0.eyJzdWIiOiJ1c2VyXzAwMSsdfowls`。常见的签名型 JWT 由三个部分组成，中间用英文句点 `.` 分隔：他们有 3 个部分组成：`Header.Payload.Signature`。
 
-关于 JWT 我们这里暂时不多说。后面有可能会开一个新的入口来说一下。所以我们只需要了解在 Fastify 里面如何使用 JWT。
+它们分别是：
+- Header：描述令牌类型和使用的签名算法等信息。
+- Payload：保存声明（Claims），例如用户标识、角色和过期时间。
+- Signature：签名，用于验证令牌的完整性和来源。
+
+JWT 的 Header 和 Payload 可以直接读取，因为它只是通过了 Base64 来进行了编码，完全可以还原出真实的内容。所以，禁止在 Payload 中方用户的敏感信息（密码、身份证号码...）。JWT 的 Header 和 Payload 还原成真实内容后大概长下面这样：
+
+Header:
+```json
+{
+  "alg": "HS256", //  使用的签名算法，这里是 HMAC-SHA256
+  "typ": "JWT" // 声明令牌类型，通常是 JWT
+}
+```
+
+Payload:
+```json
+{
+  "sub": "user_001", // Subject，通常用于标识用户。比如：userId
+  "role": "admin", // 自定义声明，用于描述角色
+  "iat": 1793000000, // 签发时间，Unix 时间戳，单位是秒
+  "exp": 1793000900 // 过期时间，Unix 时间戳，单位是秒
+}
+```
+
+Signature 则是 Header 和 Payload 加密的一个签名。用来确认 Header 和 Payload 的内容是否可信。加密可以是对称加密或者非对称加密，不管是那种加密，都需要把秘钥放在环境变量中，而不能写在代码里。使用 HS256 时，可以把签名过程粗略理解为：`Signature = HMAC-SHA256(秘钥, Base64URI(Header), Base64URI(Payload))`。
+
+
+在工作中 JWT 负责签发 Token 和验证 Token。验证的内容包括：Token 是否有效、Token 是否过期等。
+
+JWT 下发 Token 给客户端后，客户端再通过 cookie 或者 Request Header `Authorization: Bearer <token>` 的形式传给服务器。
 
 ###### @fastify/jwt
 
