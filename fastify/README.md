@@ -2475,6 +2475,24 @@ const userPlugin: FastifyPluginAsync = async (app) => {
 }
 ```
 
+##### Access Token 和 Refresh Token
+
+那 Token 的有效期应该设置多少合适呢？首先不能太长，因为被盗用后存在安全问题。也不能太短，这样用户会频繁的登录。所以就需要用到 2 个 Token 方案：Access Token 和 Refresh Token。
+
+| | Access Token（访问令牌） | Refresh Token（刷新令牌）|
+| 有效时长 | 通常有效期较短，例如 5～15 分钟 | 通常有效期更长，例如数天或数周）|
+|作用| 用于访问需要认证的业务接口。有效期短，可以缩小 Token 泄露后的可利用时间窗口。| 用于在 Access Token 过期后，向专门的刷新接口申请新的 Access Token，而不是要求用户重新输入账号密码。 |
+|使用场景| 访问业务接口的凭证 | 仅用于申请新的 Access Token | 
+| 下发场景 | 接口直接返回给客户端 | 服务期使用 Set-Cookie + HttpOnly 等安全参数 |
+
+当 Access Token 过期时，返回给客户端。客户端会请求新的签发 Token 接口，来返回新的 Access Token。
+
+等 Refresh Token 过期后才会真的退出登录。但是有个问题，比如用户正在操作，Refresh Token 过期了，用户就要去登录。能不能是用户一直存活，就一直不需要登录，只有用户失活到了 Refresh Token 过期才真的退出登录。能不能做到？
+
+答案就是：签发新的 Access Token 时，同时先发新的 Refresh Token，旧的 Refresh Token 作废。
+
+
+
 #### 权限
 
 因为有些接口只有有权限的用户才能操作。所以我们不需要给整个模块都增加这个检测，只针对特殊的 Route 做这个处理即可。我们依旧用 User 模块举例：
