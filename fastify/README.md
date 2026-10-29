@@ -2352,32 +2352,34 @@ PORT=8080 NODE_ENV=production node dist/server.js
 
 Session 就是用户调用登录接口成功后，服务端生成一个唯一的会话标识，然后把这个标识对应的 userId 来保存下来。然后用 `set-cookie` 响应头把 SessionID 设置到 Cookie 中，并设置上 `http only`。
 
-但是它有个问题。就是如果是服务器集群时，就需要把 SessionID 保存到一个统一的地方（比如： Redis）。要不然一个服务器登录了，其他的请求打到另一个服务器时没有用户的登录状态。
+但是它有个问题。就是如果是服务器集群时，就需要把 SessionID 保存到一个统一的地方（比如 Redis）。要不然一个服务器登录了，其他的请求打到另一个服务器时没有用户的登录状态。
 
 ##### Token
 
-Token 是一种凭证或令牌的通用概念。用户登录后，接口返回凭证给客户端。客户端提交请求时会携带这个凭证来这名自己的身份。当然这个身份是有可能伪造的，所以服务端收到这个凭证后会先进行验证。
+Token 是一种凭证或令牌的通用概念。用户登录后，接口返回凭证给客户端。客户端提交请求时会携带这个凭证来证明自己的身份。当然这个身份是有可能伪造的，所以服务端收到这个凭证后会先进行验证。
 
 ##### JWT
 
-JWT 的 Token 通常长这样：`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzAwMSIsInJvbGUiOiJ1c2VyIn0.eyJzdWIiOiJ1c2VyXzAwMSsdfowls`。常见的签名型 JWT 由三个部分组成，中间用英文句点 `.` 分隔：他们有 3 个部分组成：`Header.Payload.Signature`。
+JWT 的 Token 通常长这样：`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzAwMSIsInJvbGUiOiJ1c2VyIn0.eyJzdWIiOiJ1c2VyXzAwMSsdfowls`。常见的签名型 JWT 由三个部分组成，中间用英文句点 `.` 分隔：`Header.Payload.Signature`。
 
 它们分别是：
 - Header：描述令牌类型和使用的签名算法等信息。
 - Payload：保存声明（Claims），例如用户标识、角色和过期时间。
 - Signature：签名，用于验证令牌的完整性和来源。
 
-JWT 的 Header 和 Payload 可以直接读取，因为它只是通过了 Base64 来进行了编码，完全可以还原出真实的内容。所以，禁止在 Payload 中方用户的敏感信息（密码、身份证号码...）。JWT 的 Header 和 Payload 还原成真实内容后大概长下面这样：
+JWT 的 Header 和 Payload 可以直接读取，因为它只是通过了 Base64URL 来进行了编码，完全可以还原出真实的内容。所以，禁止在 Payload 中放用户的敏感信息（密码、身份证号码...）。JWT 的 Header 和 Payload 还原成真实内容后大概长成下面这样：
 
-Header:
+Header：
+
 ```json
 {
-  "alg": "HS256", //  使用的签名算法，这里是 HMAC-SHA256
+  "alg": "HS256", // 使用的签名算法，这里是 HMAC-SHA256
   "typ": "JWT" // 声明令牌类型，通常是 JWT
 }
 ```
 
-Payload:
+Payload：
+
 ```json
 {
   "sub": "user_001", // Subject，通常用于标识用户。比如：userId
@@ -2387,7 +2389,7 @@ Payload:
 }
 ```
 
-Signature 则是 Header 和 Payload 加密的一个签名。用来确认 Header 和 Payload 的内容是否可信。加密可以是对称加密或者非对称加密，不管是那种加密，都需要把秘钥放在环境变量中，而不能写在代码里。使用 HS256 时，可以把签名过程粗略理解为：`Signature = HMAC-SHA256(秘钥, Base64URI(Header), Base64URI(Payload))`。
+Signature 则是用 Header、Payload 和密钥计算出来的一个签名。用来确认 Header 和 Payload 的内容是否可信。加密可以是对称加密或者非对称加密，不管是哪种加密，都需要把密钥放在环境变量中，而不能写在代码里。使用 HS256 时，可以把签名过程粗略理解为：`Signature = HMAC-SHA256(密钥, Base64URL(Header), Base64URL(Payload))`。
 
 
 在工作中 JWT 负责签发 Token 和验证 Token。验证的内容包括：Token 是否有效、Token 是否过期等。
@@ -2451,7 +2453,7 @@ const token = await reply.jwtSign(
 
 ###### 验证
 
-验证就是用的是 `request.jwtVerify()`。一般我们是整个模块都需要验证用户是否登录，所以就会给整个模块来添加 Hooks 来验证。我们在 **生命周期** 里面说过，最适合放验证的是 `preHandler` hook。所以，例子如下：
+验证用的是 `request.jwtVerify()`。一般我们是整个模块都需要验证用户是否登录，所以就会给整个模块来添加 Hooks 来验证。我们在 **生命周期** 里面说过，最适合放验证的是 `preHandler` hook。所以，例子如下：
 
 ```ts
 import type { FastifyPluginAsync } from 'fastify'
@@ -2479,19 +2481,126 @@ const userPlugin: FastifyPluginAsync = async (app) => {
 
 那 Token 的有效期应该设置多少合适呢？首先不能太长，因为被盗用后存在安全问题。也不能太短，这样用户会频繁的登录。所以就需要用到 2 个 Token 方案：Access Token 和 Refresh Token。
 
-| | Access Token（访问令牌） | Refresh Token（刷新令牌）|
-| 有效时长 | 通常有效期较短，例如 5～15 分钟 | 通常有效期更长，例如数天或数周）|
-|作用| 用于访问需要认证的业务接口。有效期短，可以缩小 Token 泄露后的可利用时间窗口。| 用于在 Access Token 过期后，向专门的刷新接口申请新的 Access Token，而不是要求用户重新输入账号密码。 |
-|使用场景| 访问业务接口的凭证 | 仅用于申请新的 Access Token | 
-| 下发场景 | 接口直接返回给客户端 | 服务期使用 Set-Cookie + HttpOnly 等安全参数 |
+|  | Access Token（访问令牌） | Refresh Token（刷新令牌） |
+| --- | --- | --- |
+| 有效时长 | 通常有效期较短，例如 5～15 分钟 | 通常有效期更长，例如数天或数周 |
+| 作用 | 用于访问需要认证的业务接口。有效期短，可以缩小 Token 泄露后的可利用时间窗口。 | 用于在 Access Token 过期后，向专门的刷新接口申请新的 Access Token，而不是要求用户重新输入账号密码。 |
+| 使用场景 | 访问业务接口的凭证 | 仅用于申请新的 Access Token |
+| 下发场景 | 接口直接返回给客户端 | 服务端使用 Set-Cookie + HttpOnly 等安全参数 |
 
 当 Access Token 过期时，返回给客户端。客户端会请求新的签发 Token 接口，来返回新的 Access Token。
 
 等 Refresh Token 过期后才会真的退出登录。但是有个问题，比如用户正在操作，Refresh Token 过期了，用户就要去登录。能不能是用户一直存活，就一直不需要登录，只有用户失活到了 Refresh Token 过期才真的退出登录。能不能做到？
 
-答案就是：签发新的 Access Token 时，同时先发新的 Refresh Token，旧的 Refresh Token 作废。
+答案就是：签发新的 Access Token 时，同时签发新的 Refresh Token，旧的 Refresh Token 作废。
 
 
+##### JWT 的安全问题与刷新机制
+
+先看两个实际场景：
+
+**场景1：**
+
+上面我们说到，为了让用户活跃期间持续保持登录状态，我们需要在签发的 Access Token 的同时也签发了新的 Refresh Token。但这不代表旧的 Refresh Token 就不能用了。如果有人通过技术手段保存了 Refresh Token，是可以继续使用它来获取新的 Access Token。那这种情况怎么处理？
+
+**场景2：**
+
+用户登录成功，服务器签发了一个有效期为 15 分钟的 JWT。5 分钟后，这个 Token 不小心泄露给了别人。
+
+只要这个 Token 仍然有效，而且服务器没有额外的撤销或状态检查机制，拿到它的人就可能冒充原用户访问受保护接口。
+
+这引出 JWT 一个很重要的特点：
+
+**JWT 的签名可以帮助服务器识别被篡改的凭证，但不会自动让已经签发的 Token 失效**。
+
+
+###### 如何让 Token 主动失效
+
+这就需要借助第三方存储（Redis），把失效的 Token 加进去。验证 Token 的有效性后，还要去 Redis 查询 Token 的可用性。这里**需要把 Refresh Token 和 Access Token 同时保存到 Redis 里面设置为已作废**。
+
+- 如果只设置 Refresh Token 作废，那么 Access Token 就还有一小会时间可用。
+- 如果只设置 Access Token 作废，那么 Refresh Token 就可以刷新新的 Access Token。
+
+那这些数据如果一直保存在 Redis 里面，存储成本也非常大。所以就需要利用 Redis 的**自动过期机制**来清理这些无用的 Token。比较好的做法是：**在作废 Token 时，先看看 Token 剩余有效期，然后在 Redis 设置 Token 的过期时间为剩余有效期**。
+
+因为 Token 本身内容比较大，且 Token 需要保证安全性。所以我们一般存储在 Redis 里面的是 Token 的唯一标识 `jti`。可以看一下下面的例子。
+
+Fastify 例子：
+
+```ts
+import Fastify from 'fastify'
+import fastifyJwt from '@fastify/jwt'
+import { randomUUID } from 'node:crypto'
+
+const app = Fastify({ logger: true })
+
+// 演示用：生产环境应使用 Redis 或数据库
+const revokedTokens = new Map()
+
+app.register(fastifyJwt, {
+  secret: process.env.JWT_SECRET ?? 'dev-only-change-this-secret',
+
+  sign: {
+    expiresIn: '15m'
+  },
+
+  // JWT 验签成功后，还要检查是否已注销
+  trusted: async (request, payload) => {
+    const jti = payload.jti
+
+    if (!jti) return false
+
+    const expiresToken = Redis.get(jti)
+
+    // 如果能查到 Token，就说明 Token 已作废。
+    if (expiresToken) {
+      return false
+    }
+
+    return true
+  }
+})
+
+app.addHook('preHandler', async function (request, reply) {
+  try {
+    await request.jwtVerify()
+  } catch {
+    return reply.code(401).send({
+      message: 'Token 无效、已过期或已注销'
+    })
+  }
+})
+
+// 演示登录：实际项目中必须先验证用户密码
+app.post('/auth/login', async (request, reply) => {
+  const user = { id: 'user-123', role: 'user' }
+
+  const accessToken = await reply.jwtSign({
+    sub: user.id,
+    role: user.role,
+    // 下发时生成 Token 的唯一标识
+    jti: randomUUID()
+  })
+
+  return { accessToken }
+})
+
+// 退出登录：注销当前 Access Token
+app.post('/auth/logout', async (request, reply) => {
+  const { jti, exp } = request.user
+
+  if (jti && exp) {
+    // 黑名单只需保留到该 Token 自然过期
+    Redis.set(jti, exp * 1000)
+  }
+
+  return reply.send({ message: '已退出登录' })
+})
+```
+
+###### JWT 的安全取舍
+
+如果我每次都要查询一下 Redis 来判断 Token 是否过期，我为什么不用 Session 呢？Session 还更简单。所以这里就要引出取舍问题。你如果可以允许主动作废 Token 时，只作废 Refresh Token。Access Token 可以继续保活一段时间。那 JWT 还是挺方便的。
 
 #### 权限
 
