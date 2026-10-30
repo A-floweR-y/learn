@@ -2350,9 +2350,156 @@ PORT=8080 NODE_ENV=production node dist/server.js
 
 ##### Session + cookie
 
-Session 就是用户调用登录接口成功后，服务端生成一个唯一的会话标识，然后把这个标识对应的 userId 来保存下来。然后用 `set-cookie` 响应头把 SessionID 设置到 Cookie 中，并设置上 `http only`。
+Session 就是用户调用登录接口成功后，服务端生成一个唯一的会话标识，然后把这个标识对应的 userId 来保存下来。然后用 `set-cookie` 响应头把 SessionID 设置到 Cookie 中，并设置上 `HttpOnly`。
 
-但是它有个问题。就是如果是服务器集群时，就需要把 SessionID 保存到一个统一的地方（比如 Redis）。要不然一个服务器登录了，其他的请求打到另一个服务器时没有用户的登录状态。
+但是它有个问题。就是如果是服务器集群时，就需要把 SessionID 保存到一个统一的地方（比如 Redis）。要不然一个服务器登录了，其他的请求打到另一个服务器时没有用户的登录状态。退出登录时，需要删除 Session。
+
+###### Fastify 如何实现 Session
+
+Fastify 使用 Session 方案非常简单。有 2 个插件来实现 Session 功能。
+
+- `@fastify/cookie` 使用 Cookie 的能力
+- `@fastify/session` Session 插件
+
+Session 插件可以自动生成、关联和保存 Session。但是这里还是推荐在登录后显式地生成和保存 Session。能避免之前旧的 Token 还能用的情况。
+
+Session 插件会自动查询本次请求的 Session 有没有，不需要自己查询。所以验证函数只需要判断 `request.session.user` 是否存在就行了。
+
+```ts
+import Fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
+import cookie from '@fastify/cookie'
+import session from '@fastify/session'
+
+const sessionSecret = process.env.SESSION_SECRET
+
+const app = Fastify({
+  logger: true,
+})
+
+await app.register(cookie)
+
+await app.register(session, {
+  // 设置 Session 密钥
+  secret: sessionSecret,
+  // 指定 Cookie 里面设置 Session 的值
+  cookieName: 'sessionId',
+  // Cookie 的设置
+  cookie: {
+    path: '/',
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 1000
+  },
+  // 没有实际数据的 Session 不需要保存
+  saveUninitialized: false,
+  // 每次响应不必都重新发送 Cookie
+  rolling: false
+})
+
+// 验证逻辑
+async function authenticate(request: FastifyRequest, reply: FastifyReply) {
+  // 只需要判断有没有我们赋值的内容就可以了，可以是其他的值，不一定是 user
+  if (!request.session.user) {
+    return reply.code(401).send({
+      message: '请先登录'
+    })
+  }
+}
+
+app.post<{
+  Body: {
+    email: string
+    password: string
+  }
+}>('/login', {
+  schema: {
+    body: {
+      type: 'object',
+      required: ['email', 'password'],
+      additionalProperties: false,
+      properties: {
+        email: { type: 'string', format: 'email', maxLength: 254 },
+        password: { type: 'string', minLength: 1, maxLength: 128 }
+      }
+    }
+  }
+}, async (request, reply) => {
+  const { email, password } = request.body
+
+  // 1. 查询用户
+  const user = await findUserByEmail(email)
+
+  // 2. 验证密码
+  if (!user || !(await argon2.verify(user.passwordHash, password))) {
+    return reply.code(401).send({
+      message: '邮箱或密码错误'
+    })
+  }
+
+  // 3. 登录成功后重新生成 Session ID
+  await request.session.regenerate()
+
+  // 4. 将用户身份写入 Session
+  const sessionUser: SessionUser = {
+    id: user.id,
+    email: user.email,
+    role: user.role
+  }
+
+  request.session.user = sessionUser
+
+  // 5. 显式保存 Session
+  await request.session.save()
+
+  return {
+    message: '登录成功',
+    user: sessionUser
+  }
+})
+
+app.get('/me', {
+  preHandler: authenticate
+}, async (request) => {
+  return {
+    user: request.session.user
+  }
+})
+
+app.post('/logout', {
+  preHandler: authenticate
+}, async (request, reply) => {
+  await request.session.destroy()
+
+  // 清除浏览器中的 Session Cookie
+  reply.clearCookie('sessionId', {
+    path: '/'
+  })
+
+  return {
+    message: '退出登录成功'
+  }
+})
+```
+
+对于多集群的情况，并不需要特殊的修改。只需要设置一下 Session 插件的 `sessionStore` 就行了。Session 插件的存储和删除操作都会自己在 `sessionStore` 里面完成。例如：
+
+```ts
+await app.register(session, {
+  // 如果这里是 Redis 的存储对象，需要封装成符合 Fastify Session 插件的存取 API
+  store: redisSessionStore,
+})
+```
+
+**Session Plugin 的存取 API**：
+
+| 方法 | 作用 |
+| --- | --- |
+| `get(sessionId, callback)` | 根据 Session ID 获取 Session |
+| `set(sessionId, session, callback)` | 保存 Session |
+| `destroy(sessionId, callback)` | 删除 Session |
+
+`callback(null | Error, value)`，第一个参数设置为 `null` 表示成功，如果是 Error 对象，代表报错。
 
 ##### Token
 
@@ -2363,6 +2510,7 @@ Token 是一种凭证或令牌的通用概念。用户登录后，接口返回�
 JWT 的 Token 通常长这样：`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyXzAwMSIsInJvbGUiOiJ1c2VyIn0.eyJzdWIiOiJ1c2VyXzAwMSsdfowls`。常见的签名型 JWT 由三个部分组成，中间用英文句点 `.` 分隔：`Header.Payload.Signature`。
 
 它们分别是：
+
 - Header：描述令牌类型和使用的签名算法等信息。
 - Payload：保存声明（Claims），例如用户标识、角色和过期时间。
 - Signature：签名，用于验证令牌的完整性和来源。
@@ -2477,7 +2625,7 @@ const userPlugin: FastifyPluginAsync = async (app) => {
 }
 ```
 
-##### Access Token 和 Refresh Token
+###### Access Token 和 Refresh Token
 
 那 Token 的有效期应该设置多少合适呢？首先不能太长，因为被盗用后存在安全问题。也不能太短，这样用户会频繁的登录。所以就需要用到 2 个 Token 方案：Access Token 和 Refresh Token。
 
