@@ -2854,3 +2854,18 @@ process.once('SIGTERM', () => {
 })
 ```
 
+##### 释放其他资源
+
+实际项目中可能需要释放：
+- 数据库连接池
+- Redis 客户端
+- 消息队列连接
+- 其他需要主动关闭的资源
+
+释放资源我们可以写在 OnClose 的声明周期里。例如：
+
+```ts
+app.addHook('onClose', async () => {
+  await someResource.close()
+})
+```
