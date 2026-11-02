@@ -2908,3 +2908,35 @@ app.get('/health/ready', async (request, reply) => {
   }
 })
 ```
+
+#### 守护进程
+
+我们不能直接运行 `node ./fastify/index.js`。因为 NodeJS 不会主动守护自己的进程。
+
+NodeJS 进程守护的方案有两种：`pm2` 和 `docker`。
+
+##### pm2
+
+`pm2` 是 NodeJS 专门的进程守护的 npm 包。如果单纯的把 Fastify 服务运行在服务器，是个不错的选择：
+
+```bash
+# 安装
+npm install -g pm2
+
+# 启动
+pm2 start dist/server.js --name fastify-api
+```
+
+具体的 API 可以查看：[pm2 文档](https://pm2.keymetrics.io/docs/usage/quick-start/)。
+
+#### docker
+
+docker 是因为可以指定程序异常关闭后自动重启，所以它也是一个守护进程的方案。因为它是一个沙盒环境，所以也是个非常好的方案：
+
+```bash
+docker run -d \
+  --name fastify-api \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  fastify-api
+```
