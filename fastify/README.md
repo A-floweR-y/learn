@@ -2781,6 +2781,8 @@ const userPlugin: FastifyPluginAsync = async (app) => {
 }
 ```
 
+### 数据库的接入
 
-- 数据库接入
+TODO: 因为我还不会数据库，所以我打算学习完数据库再来补充和一章节。
+
 - 部署与生产环境问题
