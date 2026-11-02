@@ -2940,3 +2940,30 @@ docker run -d \
   -p 3000:3000 \
   fastify-api
 ```
+
+#### Nginx 反向代理
+
+```nginx
+server {
+    listen 80;
+    server_name example.com;
+
+    location /api/ {
+        # 指定 Fastify 的地址
+        proxy_pass http://127.0.0.1:3000;
+
+        # 指定与后端通信使用的 HTTP 版本
+        proxy_http_version 1.1;
+
+        # 使用 proxy_set_header 把请求头信息告诉给 Fastify 服务
+        proxy_set_header Host $host; # 把客户端访问的域名传给 Fastify
+        proxy_set_header X-Real-IP $remote_addr; # 递与 Nginx 建立连接的客户端 IP。
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # 记录经过代理链的客户端 IP 信息。
+        proxy_set_header X-Forwarded-Proto $scheme; # 告诉 Fastify 客户端最初使用的是 HTTP 还是 HTTPS。
+    }
+}
+```
+
+**代理反斜杠一定要特别注意**：`proxy_pass` 后面带 `/`，会去掉匹配前缀。不带 /，会携带匹配前缀。
+
+如果 Fastify 运行在 docker 环境，proxy_pass 就应该写 docker 服务的名称，比如：`proxy_pass http://fastify-api:3000;`
