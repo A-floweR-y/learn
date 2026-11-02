@@ -2869,3 +2869,42 @@ app.addHook('onClose', async () => {
   await someResource.close()
 })
 ```
+
+#### 健康检测
+
+健康检查（Health Check）是一种用于判断服务运行状态的机制。它只负责检测服务运行状态，不负责业务逻辑。
+
+最常见的两种健康检查是：
+- Liveness：存活检查。它用来检测服务进程是否在运行，能否正常响应。
+- Readiness：就绪检查。它用来检测服务是否已经准备好接收业务请求，第三方（数据库）的服务是否都启动完成。
+
+Liveness 示例：
+
+```ts
+app.get('/health/live', async () => {
+  return {
+    status: 'ok',
+  }
+})
+```
+
+Readiness 示例：
+
+```ts
+app.get('/health/ready', async (request, reply) => {
+  try {
+    // 假设 app.db 是已经注册的数据库连接池
+    await app.db.query('SELECT 1')
+
+    return {
+      status: 'ok',
+    }
+  } catch (err) {
+    request.log.error(err, 'Database is unavailable')
+
+    return reply.code(503).send({
+      status: 'unavailable',
+    })
+  }
+})
+```
