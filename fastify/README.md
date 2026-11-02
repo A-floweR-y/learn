@@ -118,7 +118,7 @@ fastify.get('/users/:id', async () => {
 });
 ```
 
-请求 `curl -i http://localhost:3000/users/123` 和 `curl -i http://localhost:3000/users/abc` 都返回 `user`。而请求 `curl -i http://localhost:3000/users` 则会返回 'GET user'。
+请求 `curl -i http://localhost:3000/users/123` 和 `curl -i http://localhost:3000/users/abc` 都返回 `user`。而请求 `curl -i http://localhost:3000/users` 则会返回 `'GET users'`。
 
 当然我们也可以返回 Path 参数。路由 handler 的第一个参数是 `request`，我们可以通过 `request.params` 来返回：
 
@@ -130,15 +130,15 @@ fastify.get('/users/:id', async (request) => {
 
 #### path 参数正则约束
 
-Fastify 支持对 path 的参数进行约束，比如我们的 id 是数字类型。如果我们只写 `get(/users/:id)`，那请求 `/users/abc` 可以是可以进入当前的 handler 的。所以，这时候我们需要对 handler 进行约束。对参数的约束要在参数后面增加小括号，约束的正则内容写在这里面。比如：
+Fastify 支持对 path 的参数进行约束，比如我们的 id 是数字类型。如果我们只写 `get(/users/:id)`，那请求 `/users/abc` 也是可以进入当前的 handler 的。所以，这时候我们需要对参数进行约束。对参数的约束要在参数后面增加小括号，约束的正则内容写在这里面。比如：
 
 ```js
-fastify.get(/users/:id(^\\d+$)) // 两个反斜杠是因为要字符串转译
+fastify.get(/users/:id(^\\d+$)) // 两个反斜杠是因为要字符串转义
 ```
 
 ### Path 通配符
 
-path 除了参数还支持统配符号：
+path 除了参数还支持通配符号：
 
 ```js
 fastify.get('/users/*', async () => {
@@ -254,9 +254,9 @@ fastify.get('/users/:id', async (request) => {
 | `reply.send(payload)` | 发送响应体。 | `reply.send({ ok: true })` |
 | `reply.redirect(url)` | 302 跳转。也可 `redirect(code, url)` | `return reply.redirect('/login')` |
 
-你可能会发现 `reply.send(payload)` 也可以发送数据。是的，Fastify 支持 2 种发送数据的方式。推荐使用 永远使用 `return`。
+你可能会发现 `reply.send(payload)` 也可以发送数据。是的，Fastify 支持 2 种发送数据的方式。推荐永远使用 `return`。
 
-replay 所有的方法都支持链式调用，比如：
+`reply` 所有的方法都支持链式调用，比如：
 
 ```js
 reply
@@ -273,7 +273,7 @@ reply
 
 ```js
 fastify.get(
-  '/user:id',
+  '/user/:id',
   {
     schema: {
       // 对 path 参数的契约
@@ -299,7 +299,7 @@ fastify.get(
 )
 ```
 
-这里是对 userId 的约束，如果 `GET /user/abc` 或者  `GET /user/` 直接回返回 `400 Bad Request`。
+这里是对 userId 的约束，如果 `GET /user/abc` 或者 `GET /user/` 直接会返回 `400 Bad Request`。
 
 ### schema 核心的 5 个位置
 
@@ -315,7 +315,7 @@ schema
 |── response # 响应
 ```
 
-其实请求 Request 相关的这 4 个 Schema 配置方式基本一致，下面分别给一个例子。`headers` 的有一点点不一样是，因为请求头都是用中横线，所以要用字符串的形式。
+其实请求 Request 相关的这 4 个 Schema 配置方式基本一致，下面分别给一个例子。`headers` 有一点点不一样，是因为请求头都是用中横线，所以要用字符串的形式。
 
 **`response` 是一个比较特殊的存在**，可以重点关注一下。
 
@@ -369,7 +369,7 @@ fastify.get('/users', {
     }
   }
 }, async (request) => {
-  return {  message: 'ok' };
+  return { message: 'ok' };
 });
 ```
 
@@ -521,7 +521,7 @@ fastify.get('/user', {
 | `array` | 数组。元素用 `items` 描述 | `{ type: 'array', items: { type: 'string' } }` → `['a', 'b']` |
 | `null` | 空值 `null`。常和别的类型组成数组：可空字段 | `{ type: ['string', 'null'] }` → `'ok'` 或 `null` |
 
-**`type` 类型还可以字符串数字的值**。比如 `GET /users?age=2`：
+**`type` 还可以是字符串或数字**。比如 `GET /users?age=2`：
 - `type: 'string'`，我们拿到的类型就是 String。
 - `type: 'integer'`，我们拿到的类型就是 Number。
 
@@ -529,13 +529,13 @@ fastify.get('/user', {
 
 #### Object 相关
 
-##### properties：
+##### properties
 
 就是在 `type: 'object'` 时，承接字段描述的对象。
 
 ##### required
 
-数组类型，它只能指定**当前层级**哪些字段是必填的。如果需要指定更深的层级，需要去哪个层级些 `required`。
+数组类型，它只能指定**当前层级**哪些字段是必填的。如果需要指定更深的层级，需要去那个层级写 `required`。
 
 ##### additionalProperties
 
@@ -551,14 +551,14 @@ Object 里允许不允许出现 Schema 没声明的属性。`false` 是不允许
 
 可以使用 `prefixItems: [{ type: 'string' }, { type: 'number' }]` 来指定数组每个位置的类型不一样的情况
 
-##### minItems** & **maxItems
+##### minItems 和 maxItems
 
 用来指定数组的最少长度和最大长度。注意默认是包含边界。
 
 
 #### String 相关
 
-##### minLength** & **maxLength
+##### minLength 和 maxLength
 
 针对 string。表示字符串长度的最小/大值，注意默认是包含边界。
 
@@ -608,6 +608,7 @@ Fastify 默认的 Ajv **不会**校验 `format`。要用的话需要自己接入
 #### 固定值的内容
 
 ##### enum
+
 限制值只能是指定的内容之一。这个非常实用，尤其是我们的请求值是一个枚举值时。
 
 ```js
@@ -1069,7 +1070,7 @@ await fastify.listen({ port: 3000 })
 | -- | -- |
 | `prefix` | 给这个插件里注册的路由统一加 URL 前缀。下面例子里 `/users` 实际是 `/api/users`。 |
 | `logLevel` | 设置这个插件作用域的日志级别。可以是 `fatal`、`error`、`warn`、`info`、`debug`、`trace`、`silent`。不写就跟着外层 logger。 |
-| `logSerializers` | 设置这个插件作用域的日志序列化器，决定某个字段写进日志时长什么样，比如自定义 `req`。后面 Logging 再细说。 |
+| `logSerializers` | 设置这个插件作用域的日志序列化器，决定某个字段写进日志时，长什么样，比如自定义 `req`。后面 Logging 再细说。 |
 
 ### 插件 = 模块
 
@@ -1559,7 +1560,7 @@ fastify.setErrorHandler((error, request, reply) => {
 })
 ```
 
-`error.validation` 是个数组，里面有检验的信息。但是**一旦我们设置了 setErrorHandler 的监听，Schema 的校验错误就会走这里**。所以我们针对 Schema 校验的错误，就需要写清楚到底哪个字段错了。所以建议直接使用 `error.message`。例如：
+`error.validation` 是个数组，里面有校验的信息。但是**一旦我们设置了 setErrorHandler 的监听，Schema 的校验错误就会走这里**。所以我们针对 Schema 校验的错误，就需要写清楚到底哪个字段错了。所以建议直接使用 `error.message`。例如：
 
 ```js
 fastify.setErrorHandler((error, request, reply) => {
@@ -1628,7 +1629,7 @@ await fastify.listen({ port: 3000 })
 
 ##### setNotFoundHandler
 
-请求不存在的路由，肯定会返回 404。如果你想对 404 的默认错误进行修改的化，可以使用这个函数。例如：
+请求不存在的路由，肯定会返回 404。如果你想对 404 的默认错误进行修改的话，可以使用这个函数。例如：
 
 ```js
 fastify.setNotFoundHandler((request, reply) => {
@@ -1642,7 +1643,7 @@ fastify.setNotFoundHandler((request, reply) => {
 
 日志对我们服务的稳定性、排查问题来说非常重要。Fastify 默认使用 Pino 输出 JSON 日志。
 
-对于请求日志来说，不需要我们手动添加。Fastify 默认会添加请求日志，前提是我们需要开始日志。开启方式：
+对于请求日志来说，不需要我们手动添加。Fastify 默认会添加请求日志，前提是我们需要开启日志。开启方式：
 
 ```js
 const fastify = new Fastify({
@@ -1651,7 +1652,7 @@ const fastify = new Fastify({
 });
 ```
 
-再请求服务我们启动服务的终端就会打印出下面这些日志：
+在请求我们启动的服务时，终端就会打印出下面这些日志：
 
 ```text
 {"level":30,"time":1792040887233,"pid":86221,"hostname":"M-FK4P2WX52R-SH","msg":"Server listening at http://[::1]:3000"}
@@ -1728,7 +1729,7 @@ Fastify 提供了 6 个级别的日志上报方法：
 1. 第一个参数可以是一个 Object，或者是字符串。
   1. 如果是个字符串，就是当前日志的 msg 字段的值
   2. 如果是个 Object，就会把 Object 里面的值添加到日志里面
-2. 第二个参数是在第一个参数是 Object 时，设置成 字符串，作为日志里面 msg 字段的值
+2. 第二个参数是在第一个参数是 Object 时，设置成字符串，作为日志里面 msg 字段的值
 
 例如：
 
@@ -1742,12 +1743,12 @@ fastify.get('/', async (req, res) => {
 
 ### 日志级别
 
-日式默认的级别是 `info`。所以 `debug` 和 `trace` 不会输入日志。如果需要输出 `debug` 和 `trace`，需要开更高级的日志。开启方式如下：
+日志默认的级别是 `info`。所以 `debug` 和 `trace` 不会输出。如果需要输出 `debug` 和 `trace`，要把级别调到 `debug` 或 `trace`。开启方式如下：
 
 ```js
 const fastify = new Fastify({
   logger: {
-    level: 'info'
+    level: 'debug'
   },
 });
 ```
@@ -2086,7 +2087,7 @@ export default dbPlugin
 
 #### decorate 中的 TS
 
-`decorate` 是给实例提供新的内容，但是ts 并不知道我们给实例提供了哪些内容。所以 `decorate` 添加的内容需要使用 TS 的 `declare` 来拓展声明。例子如下：
+`decorate` 是给实例提供新的内容，但是 TS 并不知道我们给实例提供了哪些内容。所以 `decorate` 添加的内容需要使用 TS 的 `declare` 来拓展声明。例子如下：
 
 ```ts
 fastify.decorate('db', db);
@@ -2104,11 +2105,11 @@ declare module 'fastify' {
 | -- | -- |
 | `FastifyInstance` | 给实例拓展类型 |
 | `FastifyRequest` | 给 Request 拓展类型 |
-| `FastifyRetry` | 给 Retry 拓展类型 |
+| `FastifyReply` | 给 Reply 拓展类型 |
 
 #### Fastify.getDecorator<T>() & Fastify.setDecorator<T>()
 
-我们使用 `declare module 'fastify' {}` 时，是 TS 全局都拓展了某个属性。但如果我们正常应该是通过 Plugin 来做模块的区分。比如我们只有 User 模块的 Request 对象才有 `user` 对象。这是个时候可以用 `setDecorator` 赋值， `getDecorator` 取值。例子如下：
+我们使用 `declare module 'fastify' {}` 时，是 TS 全局都拓展了某个属性。但如果我们正常应该是通过 Plugin 来做模块的区分。比如我们只有 User 模块的 Request 对象才有 `user` 对象。这个时候可以用 `setDecorator` 赋值，`getDecorator` 取值。例子如下：
 
 ```ts
 import type { FastifyPluginAsync } from 'fastify'
@@ -2144,7 +2145,7 @@ const userPlugin: FastifyPluginAsync = async (fastify) => {
 export default userPlugin
 ```
 
-那如果我不想用 `request.getDecorator<T></T>`，我就想用 `request.user` 该怎么办呢？可以用，但不建议用。因为需要各种 as 转换，比较麻烦。这里也说一下思路：
+那如果我不想用 `request.getDecorator<T>()`，我就想用 `request.user` 该怎么办呢？可以用，但不建议用。因为需要各种 as 转换，比较麻烦。这里也说一下思路：
 
 ```ts
 import type { FastifyPluginAsync } from 'fastify'
@@ -2187,6 +2188,7 @@ export default orderPlugin
 ### 项目结构与模块边界
 
 为什么我们需要划分项目结构和模块？因为我们如果把所有的逻辑写在一起会有以下问题：
+
 - **职责混杂**。路由定义、参数处理、业务规则和数据组织全部写在一起，修改某个功能时容易影响其他代码。
 - **模块之间的依赖不清楚**。用户模块可能依赖订单模块的实现细节，导致功能难以独立修改和测试。
 - **Fastify 作用域概念消失**。即使文件拆开了，某个 Plugin 注册的 Decorator、Hook 或路由，也不一定对其他模块可见。
@@ -2195,16 +2197,16 @@ export default orderPlugin
 
 #### 项目目录介绍
 
-|部分	|主要负责什么|	不应该承担什么|
-|--	|--|	--|
-| `server.ts`	|监听端口、启动和关闭服务|实现业务规则|
-| `app.ts`	|创建 Fastify 实例、注册公共插件和业务模块|堆积所有路由处理代码|
-| `plugins/`	|注册公共能力、建立模块边界|成为所有业务代码的杂物箱|
-| `modules/*/routes.ts`	|定义 URL、HTTP 方法、Schema 和请求处理入口|塞入大量复杂业务流程|
-| `modules/*/service.ts`	|实现业务逻辑|直接负责 URL 匹配和 HTTP 路由注册|
-| `modules/*/types.ts`	|导出模块需要共享的类型|代替运行时数据校验|
+| 部分 | 主要负责什么 | 不应该承担什么 |
+| --- | --- | --- |
+| `server.ts` | 监听端口、启动和关闭服务 | 实现业务规则 |
+| `app.ts` | 创建 Fastify 实例、注册公共插件和业务模块 | 堆积所有路由处理代码 |
+| `plugins/` | 注册公共能力、建立模块边界 | 成为所有业务代码的杂物箱 |
+| `modules/*/routes.ts` | 定义 URL、HTTP 方法、Schema 和请求处理入口 | 塞入大量复杂业务流程 |
+| `modules/*/service.ts` | 实现业务逻辑 | 直接负责 URL 匹配和 HTTP 路由注册 |
+| `modules/*/types.ts` | 导出模块需要共享的类型 | 代替运行时数据校验 |
 
-#### 项目目录结构：
+#### 项目目录结构
 
 ```text
 src/
@@ -2783,7 +2785,7 @@ const userPlugin: FastifyPluginAsync = async (app) => {
 
 ### 数据库的接入
 
-TODO: 因为我还不会数据库，所以我打算学习完数据库再来补充和一章节。
+TODO: 因为我还不会数据库，所以我打算学习完数据库再来补充这一章节。
 
 ### 生产环境的部署（简略版）
 
@@ -2791,21 +2793,22 @@ TODO: 因为我还不会数据库，所以我打算学习完数据库再来补�
 
 #### host 的监听
 
-不同的 Host 好有不同的定义。我们粗略的看一下下面：
+不同的 Host 各有不同的定义。我们粗略的看一下下面：
 
-|host|	含义|
-|--|--|
-|localhost / 127.0.0.1|	只接受本机回环接口的连接|
-|0.0.0.0	|监听所有 IPv4 网络接口|
+| host | 含义 |
+| --- | --- |
+| `localhost` / `127.0.0.1` | 只接受本机回环接口的连接 |
+| `0.0.0.0` | 监听所有 IPv4 网络接口 |
 
 - 如果 Fastify 直接运行在服务器上，并且只有本机 Nginx 需要访问它，监听 127.0.0.1。
 - 如果 Fastify 运行在 Docker 容器中，通常需要监听 0.0.0.0，否则容器外部可能无法访问它。
 
-所以，具体的端口还得需要看具体的运行环境。但对于我们的服务来说，我们不需要关注运行的环境，我们只需要接收环境变量 process.env.HOST，让部署方来决定 Host 是什么。
+所以，具体的端口还得看具体的运行环境。但对于我们的服务来说，我们不需要关注运行的环境，我们只需要接收环境变量 `process.env.HOST`，让部署方来决定 Host 是什么。
 
 #### 优雅退出
 
 为什么我们不直接退出呢？因为会出现以下可能：
+
 - 正在处理的请求被中断
 - 响应还没发送完，连接就断开
 - 数据库等资源没有正常释放
@@ -2814,17 +2817,18 @@ TODO: 因为我还不会数据库，所以我打算学习完数据库再来补�
 **优雅关闭的目标是：停止接收新请求，让正在处理的请求有机会完成，然后释放资源，最后退出进程。**
 
 Fastify 提供了 `await fastify.close()`。调用它会：
+
 - 停止接受新的请求连接。
 - 等待正在处理的请求完成（受相关关闭配置影响）。
 - 执行 onClose Hook。
 - 关闭 Fastify 管理的相关资源。
 
-##### NodeJs 的常见的停止信号有两个：
+##### Node.js 常见的停止信号
 
-|信号	|常见触发场景|
-|--|--|
-|SIGINT	|用户在终端按 Ctrl + C|
-|SIGTERM|	进程管理工具或 Docker 请求进程正常停止|
+| 信号 | 常见触发场景 |
+| --- | --- |
+| `SIGINT` | 用户在终端按 Ctrl + C |
+| `SIGTERM` | 进程管理工具或 Docker 请求进程正常停止 |
 
 具体实现如下：
 
@@ -2862,7 +2866,7 @@ process.once('SIGTERM', () => {
 - 消息队列连接
 - 其他需要主动关闭的资源
 
-释放资源我们可以写在 OnClose 的声明周期里。例如：
+释放资源我们可以写在 `onClose` 的生命周期里。例如：
 
 ```ts
 app.addHook('onClose', async () => {
@@ -2870,11 +2874,12 @@ app.addHook('onClose', async () => {
 })
 ```
 
-#### 健康检测
+#### 健康检查
 
 健康检查（Health Check）是一种用于判断服务运行状态的机制。它只负责检测服务运行状态，不负责业务逻辑。
 
 最常见的两种健康检查是：
+
 - Liveness：存活检查。它用来检测服务进程是否在运行，能否正常响应。
 - Readiness：就绪检查。它用来检测服务是否已经准备好接收业务请求，第三方（数据库）的服务是否都启动完成。
 
@@ -2929,7 +2934,7 @@ pm2 start dist/server.js --name fastify-api
 
 具体的 API 可以查看：[pm2 文档](https://pm2.keymetrics.io/docs/usage/quick-start/)。
 
-#### docker
+##### docker
 
 docker 是因为可以指定程序异常关闭后自动重启，所以它也是一个守护进程的方案。因为它是一个沙盒环境，所以也是个非常好的方案：
 
@@ -2957,13 +2962,13 @@ server {
 
         # 使用 proxy_set_header 把请求头信息告诉给 Fastify 服务
         proxy_set_header Host $host; # 把客户端访问的域名传给 Fastify
-        proxy_set_header X-Real-IP $remote_addr; # 递与 Nginx 建立连接的客户端 IP。
+        proxy_set_header X-Real-IP $remote_addr; # 即与 Nginx 建立连接的客户端 IP。
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # 记录经过代理链的客户端 IP 信息。
         proxy_set_header X-Forwarded-Proto $scheme; # 告诉 Fastify 客户端最初使用的是 HTTP 还是 HTTPS。
     }
 }
 ```
 
-**代理反斜杠一定要特别注意**：`proxy_pass` 后面带 `/`，会去掉匹配前缀。不带 /，会携带匹配前缀。
+**代理斜杠一定要特别注意**：`proxy_pass` 后面带 `/`，会去掉匹配前缀。不带 `/`，会携带匹配前缀。
 
 如果 Fastify 运行在 docker 环境，proxy_pass 就应该写 docker 服务的名称，比如：`proxy_pass http://fastify-api:3000;`
