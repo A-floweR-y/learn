@@ -2803,3 +2803,54 @@ TODO: 因为我还不会数据库，所以我打算学习完数据库再来补�
 
 所以，具体的端口还得需要看具体的运行环境。但对于我们的服务来说，我们不需要关注运行的环境，我们只需要接收环境变量 process.env.HOST，让部署方来决定 Host 是什么。
 
+#### 优雅退出
+
+为什么我们不直接退出呢？因为会出现以下可能：
+- 正在处理的请求被中断
+- 响应还没发送完，连接就断开
+- 数据库等资源没有正常释放
+- 客户端收到连接重置或其他错误
+
+**优雅关闭的目标是：停止接收新请求，让正在处理的请求有机会完成，然后释放资源，最后退出进程。**
+
+Fastify 提供了 `await fastify.close()`。调用它会：
+- 停止接受新的请求连接。
+- 等待正在处理的请求完成（受相关关闭配置影响）。
+- 执行 onClose Hook。
+- 关闭 Fastify 管理的相关资源。
+
+##### NodeJs 的常见的停止信号有两个：
+
+|信号	|常见触发场景|
+|--|--|
+|SIGINT	|用户在终端按 Ctrl + C|
+|SIGTERM|	进程管理工具或 Docker 请求进程正常停止|
+
+具体实现如下：
+
+```ts
+const closeGracefully = async (signal: string) => {
+  app.log.info(`Received ${signal}, closing server...`)
+
+  try {
+    await app.close()
+    app.log.info('Server closed successfully')
+  } catch (err) {
+    app.log.error(err, 'Error while closing server')
+    // 设置 process.exitCode 则只是标记退出状态，让 Node.js 在事件循环中的工作完成后自然退出。
+    // process.exit() 会立即强制结束进程，可能中断尚未完成的日志写入或其他清理操作。
+    process.exitCode = 1
+  }
+}
+
+// once 表示监听器只执行一次，避免同一个信号被重复处理
+process.once('SIGINT', () => {
+  void closeGracefully('SIGINT')
+})
+
+// once 表示监听器只执行一次，避免同一个信号被重复处理
+process.once('SIGTERM', () => {
+  void closeGracefully('SIGTERM')
+})
+```
+
