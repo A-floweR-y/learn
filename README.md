@@ -24,7 +24,6 @@
 
 ## 未至
 
-- Fastify
 - Fluent Bit
 - Elasticsearch
 - Kibana
