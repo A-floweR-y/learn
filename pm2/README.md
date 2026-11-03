@@ -75,3 +75,38 @@ pm2 start dist/server.js --name my-server
 
 `pm2 start` 执行了某个脚本后，如果再次执行会被拦截。告诉你已经执行过了。如果需要重新执行使用 `pm2 restart <id\|name>` 即可。但如果同一个脚本指定了不同的名称，是可以启动多次的。
 
+
+
+### pm2 list
+
+```base
+pm2 list
+```
+
+以下是返回的内容：
+
+```text
+│ id │ name      │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼───────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 0  │ my-server │ default     │ 1.0.0   │ fork    │ 79173    │ 0s     │ 0    │ online    │ 0%       │ 944.0kb  │ y...     │ disabled │
+```
+
+- `id`：PM2 给这个进程的编号。
+- name：应用名称。通过 `--name` 指定。
+- namespace：命名空间，用来给进程分组。没指定就是 `default`。
+- version：应用版本，读的是项目 `package.json` 里的 `version`。例子里是 `1.0.0`。读不到就是 `N/A`。
+- mode：运行模式。`fork` 是单独一个进程；`cluster` 是多实例。
+- pid：操作系统里的进程号。例子里是 `79173`。进程停掉之后，这里一般变成 `0`。
+- `uptime`：这次启动后已经跑了多久。重启之后从 `0s` 重新计。
+- `↺`：重启次数。崩溃后被 PM2 拉起来，或者手动 `pm2 restart`，都会加 1。刚启动是 `0`。
+- status：当前状态。`online` 表示正在运行。另外常见的有 `stopped`（手动停了）、`errored`（出错且没在跑）、`launching`（正在启动）。
+- cpu：当前 CPU 占用。刚启动时经常看到 `0%`。
+- mem：当前内存占用。例子里是 `944.0kb`。
+- user：启动这个进程的系统用户。名字太长会被截断，所以例子里是 `y...`。
+- watching：有没有监听文件变化。`disabled` 是没开。启动时加了 `--watch`，这里会变成 `enabled`，文件一改就重启。
+
+**其中最重要的是**：
+- id：后续可以用它操作指定进程。
+- `name`：也可以用名称操作进程。
+- pid：可以用来和操作系统进程信息对应。
+- status：快速判断进程是否正常运行。
