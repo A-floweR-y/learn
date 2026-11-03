@@ -51,3 +51,27 @@ PM2 的能力可以归类为 4 项：
 |pm2 save	|保存当前进程列表|
 |pm2 resurrect|	恢复已保存的进程列表|
 |pm2 startup|	配置开机自启动|
+
+### pm2 start
+
+基本用法：
+
+```bash
+pm2 start dist/server.js --name my-server
+```
+
+`--name` 仅仅用于识别应用，不指定也可以运行程序。
+
+**常见参数**：
+
+|参数|	作用|
+|--|--|
+|`--name <name>`|	指定应用名称|
+|`--watch`	|文件变化时自动重启|
+|`--instances <number>`	|指定启动实例数量|
+|`--exec-mode <mode>`	|指定运行模式：`fork` 或 `cluster`|
+
+`--instances` 和 `--exec-mode` 的原理我们在 Cluster Mode 章节再深入讲解。
+
+`pm2 start` 执行了某个脚本后，如果再次执行会被拦截。告诉你已经执行过了。如果需要重新执行使用 `pm2 restart <id\|name>` 即可。但如果同一个脚本指定了不同的名称，是可以启动多次的。
+
