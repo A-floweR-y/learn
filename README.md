@@ -38,11 +38,10 @@
 - Workbox
 - KLineChart
 - TradingView
-- TLS/HTTPS
 - NestJS
 - Vitest
 - PostgreSQL
-- CDN/Browser Cache
+- CDN 缓存
 - Docker
 - Docker Compose
 - TypeScript
@@ -70,3 +69,13 @@
 - AI Agent
 - Web3
 - 跨端开发
+- Redis：缓存、会话、限流、队列等常见服务端能力
+- API 设计：REST API、状态码、分页、错误响应、幂等性
+- OpenAPI / Swagger：API 文档与接口契约
+- 系统设计：服务拆分、架构设计、可扩展性
+- 消息队列：异步任务、事件驱动
+- 云服务：应用部署、对象存储、数据库与云基础设施
+- OpenTelemetry：链路追踪、指标、日志与可观测性
+- AI 应用安全：Prompt Injection、工具权限、数据泄露、输出校验
+- AI 应用评估：质量、准确性、稳定性、延迟和成本
+- 向量数据库：RAG 和语义检索相关实践
