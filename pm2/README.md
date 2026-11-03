@@ -35,3 +35,19 @@ PM2 的能力可以归类为 4 项：
 |状态监控	|查看进程状态、CPU、内存等|
 |日志管理	|收集应用标准输出和错误输出|
 
+## PM2 核心命令
+
+|命令|	作用|
+|--|--|
+|pm2 start <script> --name <name>	|启动应用|
+|pm2 list|	查看所有托管进程|
+|pm2 show <id\|name>	|查看指定进程的详细信息|
+|pm2 stop <id\|name>	|停止指定进程|
+|pm2 restart <id\|name>	|重启指定进程|
+|pm2 reload <id\|name>	|平滑重载指定进程|
+|pm2 delete <id\|name>|	停止并删除指定进程|
+|pm2 logs [id\|name]	|查看日志|
+|pm2 monit	|实时查看进程资源使用情况|
+|pm2 save	|保存当前进程列表|
+|pm2 resurrect|	恢复已保存的进程列表|
+|pm2 startup|	配置开机自启动|
