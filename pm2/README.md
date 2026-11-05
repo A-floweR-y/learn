@@ -168,3 +168,16 @@ pm2 list
 - reload：尝试以更平滑的方式替换旧进程，尽量减少服务不可用的时间。
 
 **reload 最有价值的场景是 Cluster Mode**。因为 Cluster Mode 下有多个应用实例，PM2 可以逐个替换实例，让其他实例继续处理请求。
+
+
+### pm2 logs <id|name>
+
+`pm2 logs` 不指定 id 或 name 时是查看所有的日志。指定id 或 name时，仅查看指定进程的日志。
+
+**pm2 log 参数**：
+
+|参数|说明|示例|
+|--|--|--|
+|--lines| 显示最近几条日志| pm2 logs hello --lines 100 |
+|--err| 只查看错误日志| pm2 logs hello --err |
+|--out| 只查看标准输出日志| pm2 logs hello --out |
