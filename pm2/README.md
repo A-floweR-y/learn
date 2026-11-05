@@ -181,3 +181,13 @@ pm2 list
 |--lines| 显示最近几条日志| pm2 logs hello --lines 100 |
 |--err| 只查看错误日志| pm2 logs hello --err |
 |--out| 只查看标准输出日志| pm2 logs hello --out |
+
+### pm2 monit
+
+会进入一个实时观察监控的界面。主要展示：
+- CPU 使用率
+- 内存使用量
+- 日志输出
+- 进程状态
+
+按 Ctrl + C 退出监控，不会停止应用。
