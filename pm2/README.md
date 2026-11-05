@@ -121,3 +121,34 @@ pm2 list
 - `name`：也可以用名称操作进程。
 - `pid`：可以用来和操作系统进程信息对应。
 - `status`：快速判断进程是否正常运行。
+
+### pm2 show <id|name>
+
+也是展示信息，不过相比于 pm2 list 会展示更多的信息。比如：
+
+- script path：启动脚本的路径。
+- exec cwd：进程的工作目录。
+
+
+
+-interpreter：使用的执行器，例如 Node.js。
+
+
+
+-exec mode：运行模式，例如 fork。
+
+
+
+-status：进程状态。
+
+
+
+-restarts：重启次数。
+
+
+
+-node.js version：Node.js 版本。
+
+
+
+-环境变量：进程启动时使用的环境变量。
