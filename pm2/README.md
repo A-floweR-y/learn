@@ -152,3 +152,11 @@ pm2 list
 
 
 -环境变量：进程启动时使用的环境变量。
+
+### pm2 stop|restart|delete
+
+它们3个的参数都是：`pm2 stop|restart|delete <id|name>`。
+
+- pm2 stop：停止进程
+- pm2 restart：重启进程
+- pm2 delete：删除进程
