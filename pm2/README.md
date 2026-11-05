@@ -153,10 +153,18 @@ pm2 list
 
 -环境变量：进程启动时使用的环境变量。
 
-### pm2 stop|restart|delete
+### pm2 stop|restart|delete|reload
 
-它们3个的参数都是：`pm2 stop|restart|delete <id|name>`。
+它们3个的参数都是：`pm2 stop|restart|delete|reload <id|name>`。
 
 - pm2 stop：停止进程
 - pm2 restart：重启进程
 - pm2 delete：删除进程
+- pm2 reload：平滑重载
+
+#### reload VS restart
+
+- restart：先停止旧进程，再启动新进程。
+- reload：尝试以更平滑的方式替换旧进程，尽量减少服务不可用的时间。
+
+**reload 最有价值的场景是 Cluster Mode**。因为 Cluster Mode 下有多个应用实例，PM2 可以逐个替换实例，让其他实例继续处理请求。
