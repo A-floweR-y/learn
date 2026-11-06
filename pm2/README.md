@@ -269,12 +269,17 @@ Ecosystem 除了批量操作应用外，还可以指定应用的环境变量、�
 | `instances` | 启动的应用进程实例数量 | `'max'` 或 `4` | 充分利用多核 CPU 算力，提升并发吞吐量；设为 `'max'` 自动匹配 CPU 核心数 |
 | `exec_mode` | 进程执行模式，可选 `'fork'` 或 `'cluster'` | `'cluster'` | 无状态 Web/API 服务建议设为 `'cluster'` 实现负载均衡；有状态服务、Cron 定时任务必须用 `'fork'` |
 
+fork 是用独立的进程启动一个实例。
+cluster 是一个独立的 Primary 进程来协调多个独立的 NodeJs Worker 进程，具体创建 NodeJS Worker 进程的数量有 instances 来指定。它有点负载均衡的意思。
+
 #### 环境变量
 
 | 参数 | 作用 | 示例 | 使用场景 |
 | --- | --- | --- | --- |
 | `env` | 所有环境下生效的基础默认环境变量 | `{ NODE_ENV: 'development', PORT: 3000 }` | 本地开发或各个环境通用的基础环境变量配置 |
 | `env_name` | 指定生产环境生效的环境变量（通过 `--env name` 激活） | `{ NODE_ENV: 'production', PORT: 8080 }` | 环境切换： `env_test`、`env_stg` 或 `env_prod` |
+
+通用配置放到 `env` 上，环境配置放到 `env_name` 上。最终会执行合并，通过 `process.env` 获取。
 
 #### 进程生命周期管理
 
