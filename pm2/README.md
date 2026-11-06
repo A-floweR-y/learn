@@ -230,6 +230,8 @@ module.exports = {
 |pm2 reload ecosystem.config.js | 批量平滑重载应用|
 |pm2 delete ecosystem.config.js | 批量删除应用|
 
-###
+### Ecosystem 的价值
 
-以上命令除了 `pm2 start`，其他的都支持 `all` 或者指定应用 `pm2 stop app1 app2`。
+PM2 的 `restart/stop/reload/delete`，都支持 `all` 或者指定多个应用 `pm2 stop app1 app2`。本来就可以批量操作，那 Ecosystem 的价值是什么呢？
+
+Ecosystem 除了批量操作应用外，还可以指定应用的环境变量、运行模式、实例的数量、生命周期、文件监听、日志管理等等操作。所以，**Ecosystem真正的价值是对应用的统一管理**，而非批量操作。
