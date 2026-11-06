@@ -155,7 +155,7 @@ pm2 list
 
 ### pm2 stop|restart|delete|reload
 
-它们3个的参数都是：`pm2 stop|restart|delete|reload <id|name>`。
+它们3个的参数都是：`pm2 stop|restart|delete|reload <id|name|all>`。
 
 - pm2 stop：停止进程
 - pm2 restart：重启进程
@@ -191,3 +191,45 @@ pm2 list
 - 进程状态
 
 按 Ctrl + C 退出监控，不会停止应用。
+
+## Ecosystem
+
+我们前面学到了如何 pm2 的常用命令，但每个命令都只能操作1个应用，如果我们要同时启动多个应用，就会非常麻烦。所以 PM2 的 Ecosystem 就是来解决这个问题的。它允许我们把多个应用都配置在一个配置文件（ecosystem.config.js）中，来让我们可以做到批量处理的效果。例子：
+
+```js
+module.exports = {
+  apps: [
+    {
+      // 应用名称
+      name: 'hello',
+      // 执行的脚本
+      script: './dist/server.js',
+      // 进程工作目录
+      cwd: '/Users/me/projects/hello',
+      // 传给应用的参数
+      args: ['--port', '3000'],
+      // 环境变量
+      env: {
+        NODE_ENV: 'development',
+      }
+    },
+    ...APP_A,
+    ...APP_B,
+    ...APP_C,
+  ],
+};
+```
+
+常规的启、停、删等操作都支持指定 Ecosystem Config 文件。
+
+|命令|作用|
+|--|--|
+|pm2 start ecosystem.config.js | 批量启动应用|
+|pm2 restart ecosystem.config.js | 批量重启应用|
+|pm2 stop ecosystem.config.js | 批量停止应用|
+|pm2 reload ecosystem.config.js | 批量平滑重载应用|
+|pm2 delete ecosystem.config.js | 批量删除应用|
+
+###
+
+以上命令除了 `pm2 start`，其他的都支持 `all` 或者指定应用 `pm2 stop app1 app2`。
