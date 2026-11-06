@@ -15,6 +15,20 @@ PM2 是一个 Node.js 进程管理器，它负责启动、监控和管理 Node.j
 - [PM2 核心命令](#pm2-核心命令)
   - [pm2 start](#pm2-start)
   - [pm2 list](#pm2-list)
+  - [pm2 show <id|name>](#pm2-show-idname)
+  - [pm2 stop|restart|delete|reload](#pm2-stoprestartdeletereload)
+    - [reload VS restart](#reload-vs-restart)
+  - [pm2 logs <id|name>](#pm2-logs-idname)
+  - [pm2 monit](#pm2-monit)
+- [Ecosystem](#ecosystem)
+  - [Ecosystem 的价值](#ecosystem-的价值)
+  - [Ecosystem 常用配置项](#ecosystem-常用配置项)
+    - [应用基本信息](#应用基本信息)
+    - [运行模式与实例](#运行模式与实例)
+    - [环境变量](#环境变量)
+    - [进程生命周期管理](#进程生命周期管理)
+    - [文件监听](#文件监听)
+    - [日志管理](#日志管理)
 
 ---
 
@@ -235,3 +249,60 @@ module.exports = {
 PM2 的 `restart/stop/reload/delete`，都支持 `all` 或者指定多个应用 `pm2 stop app1 app2`。本来就可以批量操作，那 Ecosystem 的价值是什么呢？
 
 Ecosystem 除了批量操作应用外，还可以指定应用的环境变量、运行模式、实例的数量、生命周期、文件监听、日志管理等等操作。所以，**Ecosystem真正的价值是对应用的统一管理**，而非批量操作。
+
+### Ecosystem 常用配置项
+
+#### 应用基本信息
+
+| 参数 | 作用 | 示例 | 使用场景 |
+| --- | --- | --- | --- |
+| `name` | 指定应用名称| `'my-app'` | 用来区分服务 |
+| `script` | 应用启动的入口脚本路径 | `'./dist/main.js'` |  |
+| `cwd` | 进程运行的当前工作目录（Current Working Directory） | `'/var/www/my-app'` |  |
+| `args` | 传递给应用脚本的命令行参数（通过 `process.argv` 读取） | `['--port', '3000']` 或 `'--port 3000'` | 传递启动参数，如指定端口、环境标识、动态配置项等 |
+| `interpreter_args` | 传递给 Node.js 解释器本身（V8 引擎）的运行参数 | `['--max-old-space-size=4096']` | 调整 Node.js 内存上限（防止 OOM）、开启实验性特性或排查性能问题 |
+
+#### 运行模式与实例
+
+| 参数 | 作用 | 示例 | 使用场景 |
+| --- | --- | --- | --- |
+| `instances` | 启动的应用进程实例数量 | `'max'` 或 `4` | 充分利用多核 CPU 算力，提升并发吞吐量；设为 `'max'` 自动匹配 CPU 核心数 |
+| `exec_mode` | 进程执行模式，可选 `'fork'` 或 `'cluster'` | `'cluster'` | 无状态 Web/API 服务建议设为 `'cluster'` 实现负载均衡；有状态服务、Cron 定时任务必须用 `'fork'` |
+
+#### 环境变量
+
+| 参数 | 作用 | 示例 | 使用场景 |
+| --- | --- | --- | --- |
+| `env` | 所有环境下生效的基础默认环境变量 | `{ NODE_ENV: 'development', PORT: 3000 }` | 本地开发或各个环境通用的基础环境变量配置 |
+| `env_name` | 指定生产环境生效的环境变量（通过 `--env name` 激活） | `{ NODE_ENV: 'production', PORT: 8080 }` | 环境切换： `env_test`、`env_stg` 或 `env_prod` |
+
+#### 进程生命周期管理
+
+| 参数 | 作用 | 示例 | 使用场景 |
+| --- | --- | --- | --- |
+| `autorestart` | 进程异常退出后是否自动重启，默认为 `true` | `false` | 常驻服务保持默认 `true`；一次性执行完毕就退出的脚本任务需设为 `false` |
+| `max_memory_restart` | 进程内存占用达到上限阈值时自动重启 | `'1G'` 或 `'500M'` | 防止程序因内存泄漏（Memory Leak）导致服务器崩溃 OOM |
+| `restart_delay` | 异常崩溃后延迟等待指定毫秒数再重启，默认 `0` | `3000` | 防止下游依赖（如数据库或 Redis）抖动断开时，应用高频连续重启刷爆系统 |
+| `max_restarts` | 连续不稳定重启的最大重试次数，达到后标记为 `errored`，默认 `16` | `10` | 配合 `min_uptime`，防止配置错误或端口冲突等致命 Bug 导致陷入死循环重启 |
+| `min_uptime` | 最小稳定运行时间；超过该时间平稳运行才判定为成功启动，此时重启计数清零，默认 `1000`（ms） | `'10s'` 或 `10000` | 区分“启动即崩溃”与“长期运行后的偶发异常”，合理重置重启计数器 |
+| `kill_timeout` | 重启/停止发送 `SIGINT` 后等待进程自行退出的超时毫秒数，超时仍未退出强制发送 `SIGKILL`，默认 `1600`（ms） | `5000` | 优雅退出（Graceful Shutdown），给正在处理中的存量请求和资源释放预留充足时间 |
+| `listen_timeout` | 在 `cluster` 模式 reload 时等待进程触发 `ready` / 监听端口的超时毫秒数，超时判定失败，默认 `8000`（ms） | `10000` | 项目启动较慢（如大量预热数据、加载大模型/字典）时，避免被 PM2 误杀并平滑回退 |
+
+#### 文件监听
+
+| 参数 | 作用 | 示例 | 使用场景 |
+| --- | --- | --- | --- |
+| `watch` | 开启文件改动监听，文件变动时自动重启应用，默认为 `false` | `true` 或 `['src']` | 本地开发调试时实时热重载；生产环境严禁开启 |
+| `ignore_watch` | 忽略监听的文件或目录列表（支持 glob 语法和正则） | `['node_modules', 'logs', '.git']` | 过滤构建目录、日志文件、依赖包等变动，防止写日志触发无限重启 |
+| `watch_delay` | 文件变化后的防抖延迟等待毫秒数，默认 `0` | `1000` | 避免代码批量修改、Git 切换分支或编译器输出时频繁且重复触发重启 |
+
+#### 日志管理
+
+| 参数 | 作用 | 示例 | 使用场景 |
+| --- | --- | --- | --- |
+| `log_file` | 合并日志文件路径（标准输出与错误输出合并写入） | `'./logs/combined.log'` | 需要将所有标准输出与异常报错聚合存放到单个文件时 |
+| `out_file` | 标准输出日志（stdout / `console.log`）保存路径 | `'./logs/out.log'` | 业务常规日志归档，与报错日志物理隔离 |
+| `error_file` | 错误输出日志（stderr / `console.error`）保存路径 | `'./logs/error.log'` | 单独收集错误日志与崩溃堆栈，便于配置告警和问题排查 |
+| `merge_logs` | 集群模式下是否将所有实例子进程的日志合并写入同一文件，默认 `false` | `true` | 在 `cluster` 多实例下，避免生成如 `app-0.log`、`app-1.log` 等分散文件 |
+| `log_date_format` | 每行日志前自动追加的时间前缀格式（遵循 moment.js 规范） | `'YYYY-MM-DD HH:mm:ss'` | 应用内日志没有自带时间戳时，由 PM2 统一追加标准时间 |
+| `time` | 是否在日志前追加时间戳前缀，为 `true` 时自动生成 ISO 格式时间 | `true` | 快速启用日志时间戳，免于手动配置复杂的格式字符串 |
