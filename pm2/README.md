@@ -335,5 +335,7 @@ cluster 是一个独立的 Primary 进程来协调多个独立的 NodeJs Worker 
 
 `pm2 cleardump` 可以清楚掉 `~/.pm2/dump.pm2` 文件，不需要手动删除。
 
-### resurrect
+### pm2 resurrect
+
+我们现在已经有了应用列表快照，但是如何恢复呢？就是使用 `pm2 resurrect`。它会恢复我们保存的快照。当然我们不需要执行，pm2 在自启动时会自己执行。
 
