@@ -79,3 +79,12 @@
 - AI 应用安全：Prompt Injection、工具权限、数据泄露、输出校验
 - AI 应用评估：质量、准确性、稳定性、延迟和成本
 - 向量数据库：RAG 和语义检索相关实践
+
+## 计算机系统与工程范式：从机器视角到设计抽
+
+- 《编码：隐匿在计算机软硬件背后的语言》- Charles Petzold（查尔斯·佩措尔德）
+- 《C程序设计语言》（精读第 5、6 章） - Brian W. Kernighan / Dennis M. Ritchie（布莱恩·克尼汉 / 丹尼斯·里奇，即 K&R）
+- 《计算机网络：自顶向下方法》 - James F. Kurose / Keith W. Ross（詹姆斯·库罗斯 / 基思·罗斯）
+- 《操作系统导论》（OSTEP） - Remzi H. Arpaci-Dusseau / Andrea C. Arpaci-Dusseau（雷姆齐·阿帕西-杜塞奥 / 安德烈亚·阿帕西-杜塞奥）
+- 《深入理解计算机系统》（CSAPP） - Randal E. Bryant / David R. O'Hallaron（兰德尔·布莱恩特 / 大卫·奥哈拉伦）
+- 《设计原本》 - Frederick P. Brooks, Jr.（小弗雷德里克·布鲁克斯）
