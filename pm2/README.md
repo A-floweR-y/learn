@@ -317,3 +317,13 @@ cluster 是一个独立的 Primary 进程来协调多个独立的 NodeJs Worker 
 
 我们虽然可以使用 Ecosystem 来批量管理我们的应用，但如果服务器重启了，就需要手动登录上去再重启一下。为了解决这个问题，所有就需要用到开机自启动。
 
+### pm2 startup 和 pm2 unstartup
+
+`pm2 startup` 和 `pm2 unstartup` 分别是生成开启自启动命令 和 接触开机自启动命令。重点：**它们只生成命令，需要你手动执行这个命令**。
+
+它们输入的内容大概是：`sudo env PATH=$PATH:/Users/xxx/.local/share/fnm/node-versions/v22.21.1/installation/bin /Users/xxx/Library/pnpm/global/5/.pnpm/pm2@7.1.1/node_modules/pm2/bin/pm2 unstartup launchd -u xxx --hp /Users/xxx`。
+
+当我们执行了开启自启动命令时，开机就会自动启动 pm2 的 Daemon 程序。那如何恢复我们的应用呢？需要继续往下看。
+
+
+
