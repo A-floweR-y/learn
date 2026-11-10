@@ -29,6 +29,20 @@ PM2 是一个 Node.js 进程管理器，它负责启动、监控和管理 Node.j
     - [进程生命周期管理](#进程生命周期管理)
     - [文件监听](#文件监听)
     - [日志管理](#日志管理)
+- [开机自启动与进程恢复](#开机自启动与进程恢复)
+  - [pm2 startup 和 pm2 unstartup](#pm2-startup-和-pm2-unstartup)
+  - [pm2 save](#pm2-save)
+  - [pm2 resurrect](#pm2-resurrect)
+- [运行模式](#运行模式)
+  - [Fork Mode VS Cluster Mode](#fork-mode-vs-cluster-mode)
+  - [Cluster Mode](#cluster-mode)
+    - [Cluster Mode 的负载均衡](#cluster-mode-的负载均衡)
+    - [Cluster Mode 的 reload](#cluster-mode-的-reload)
+    - [需要注意的问题](#需要注意的问题)
+- [生产环境](#生产环境)
+  - [选择 Docker 还是 PM2](#选择-docker-还是-pm2)
+  - [生产环境的分工](#生产环境的分工)
+  - [生产环境常用操作](#生产环境常用操作)
 
 ---
 
@@ -138,77 +152,61 @@ pm2 list
 
 ### pm2 show <id|name>
 
-也是展示信息，不过相比于 pm2 list 会展示更多的信息。比如：
+也是展示信息，不过相比于 `pm2 list` 会展示更多的信息。比如：
 
-- script path：启动脚本的路径。
-- exec cwd：进程的工作目录。
-
-
-
--interpreter：使用的执行器，例如 Node.js。
-
-
-
--exec mode：运行模式，例如 fork。
-
-
-
--status：进程状态。
-
-
-
--restarts：重启次数。
-
-
-
--node.js version：Node.js 版本。
-
-
-
--环境变量：进程启动时使用的环境变量。
+- `script path`：启动脚本的路径。
+- `exec cwd`：进程的工作目录。
+- `interpreter`：使用的执行器，例如 Node.js。
+- `exec mode`：运行模式，例如 fork。
+- `status`：进程状态。
+- `restarts`：重启次数。
+- `node.js version`：Node.js 版本。
+- 环境变量：进程启动时使用的环境变量。
 
 ### pm2 stop|restart|delete|reload
 
-它们3个的参数都是：`pm2 stop|restart|delete|reload <id|name|all>`。
+它们 4 个的参数都是：`pm2 stop|restart|delete|reload <id|name|all>`。
 
-- pm2 stop：停止进程
-- pm2 restart：重启进程
-- pm2 delete：删除进程
-- pm2 reload：平滑重载
+- `pm2 stop`：停止进程
+- `pm2 restart`：重启进程
+- `pm2 delete`：删除进程
+- `pm2 reload`：平滑重载
 
 #### reload VS restart
 
-- restart：先停止旧进程，再启动新进程。
-- reload：尝试以更平滑的方式替换旧进程，尽量减少服务不可用的时间。
+- `restart`：先停止旧进程，再启动新进程。
+- `reload`：尝试以更平滑的方式替换旧进程，尽量减少服务不可用的时间。
 
 **reload 最有价值的场景是 Cluster Mode**。因为 Cluster Mode 下有多个应用实例，PM2 可以逐个替换实例，让其他实例继续处理请求。
 
-
 ### pm2 logs <id|name>
 
-`pm2 logs` 不指定 id 或 name 时是查看所有的日志。指定id 或 name时，仅查看指定进程的日志。
+`pm2 logs` 不指定 id 或 name 时是查看所有的日志。指定 id 或 name 时，仅查看指定进程的日志。
 
-**pm2 log 参数**：
+**pm2 logs 参数**：
 
-|参数|说明|示例|
-|--|--|--|
-|--lines| 显示最近几条日志| pm2 logs hello --lines 100 |
-|--err| 只查看错误日志| pm2 logs hello --err |
-|--out| 只查看标准输出日志| pm2 logs hello --out |
+| 参数 | 说明 | 示例 |
+| --- | --- | --- |
+| `--lines` | 显示最近几条日志 | `pm2 logs hello --lines 100` |
+| `--err` | 只查看错误日志 | `pm2 logs hello --err` |
+| `--out` | 只查看标准输出日志 | `pm2 logs hello --out` |
 
 ### pm2 monit
 
 会进入一个实时观察监控的界面。主要展示：
+
 - CPU 使用率
 - 内存使用量
 - 日志输出
 - 进程状态
 
-按 Ctrl + C 退出监控，不会停止应用。
+按 `Ctrl + C` 退出监控，不会停止应用。
+
+---
 
 ## Ecosystem
 
-我们前面学到了如何 pm2 的常用命令，但每个命令都只能操作1个应用，如果我们要同时启动多个应用，就会非常麻烦。所以 PM2 的 Ecosystem 就是来解决这个问题的。它允许我们把多个应用都配置在一个配置文件（ecosystem.config.js）中，来让我们可以做到批量处理的效果。例子：
+我们前面学到了 PM2 的常用命令，但每个命令都只能操作 1 个应用，如果我们要同时管理多个应用，就会非常繁琐。所以 PM2 的 Ecosystem 就是来解决这个问题的。它允许我们把多个应用统一配置在一个配置文件（`ecosystem.config.js`）中，从而实现集中管理和批量操作。例子：
 
 ```js
 module.exports = {
@@ -234,21 +232,21 @@ module.exports = {
 };
 ```
 
-常规的启、停、删等操作都支持指定 Ecosystem Config 文件。
+常规的启、停、删等操作都支持指定 Ecosystem 配置文件。
 
-|命令|作用|
-|--|--|
-|pm2 start ecosystem.config.js | 批量启动应用|
-|pm2 restart ecosystem.config.js | 批量重启应用|
-|pm2 stop ecosystem.config.js | 批量停止应用|
-|pm2 reload ecosystem.config.js | 批量平滑重载应用|
-|pm2 delete ecosystem.config.js | 批量删除应用|
+| 命令 | 作用 |
+| --- | --- |
+| `pm2 start ecosystem.config.js` | 批量启动应用 |
+| `pm2 restart ecosystem.config.js` | 批量重启应用 |
+| `pm2 stop ecosystem.config.js` | 批量停止应用 |
+| `pm2 reload ecosystem.config.js` | 批量平滑重载应用 |
+| `pm2 delete ecosystem.config.js` | 批量删除应用 |
 
 ### Ecosystem 的价值
 
-PM2 的 `restart/stop/reload/delete`，都支持 `all` 或者指定多个应用 `pm2 stop app1 app2`。本来就可以批量操作，那 Ecosystem 的价值是什么呢？
+PM2 的 `restart/stop/reload/delete` 都支持 `all` 或者指定多个应用 `pm2 stop app1 app2`。既然本来就可以批量操作，那 Ecosystem 的价值是什么呢？
 
-Ecosystem 除了批量操作应用外，还可以指定应用的环境变量、运行模式、实例的数量、生命周期、文件监听、日志管理等等操作。所以，**Ecosystem真正的价值是对应用的统一管理**，而非批量操作。
+Ecosystem 除了批量操作应用外，还可以指定应用的环境变量、运行模式、实例的数量、生命周期、文件监听、日志管理等等配置。所以，**Ecosystem 真正的价值是对应用的统一配置与管理**，而非单纯的批量操作。
 
 ### Ecosystem 常用配置项
 
@@ -256,9 +254,9 @@ Ecosystem 除了批量操作应用外，还可以指定应用的环境变量、�
 
 | 参数 | 作用 | 示例 | 使用场景 |
 | --- | --- | --- | --- |
-| `name` | 指定应用名称| `'my-app'` | 用来区分服务 |
-| `script` | 应用启动的入口脚本路径 | `'./dist/main.js'` |  |
-| `cwd` | 进程运行的当前工作目录（Current Working Directory） | `'/var/www/my-app'` |  |
+| `name` | 指定应用名称，在 PM2 列表显示及 CLI 操作时的标识 | `'my-app'` | 用来区分服务、按名称启停（如 `pm2 reload my-app`） |
+| `script` | 应用启动的入口脚本路径 | `'./dist/main.js'` | 指定构建打包后的主入口或启动脚本 |
+| `cwd` | 进程运行的当前工作目录（Current Working Directory） | `'/var/www/my-app'` | Monorepo 多包项目、或者脚本依赖相对路径读取配置和静态资源时 |
 | `args` | 传递给应用脚本的命令行参数（通过 `process.argv` 读取） | `['--port', '3000']` 或 `'--port 3000'` | 传递启动参数，如指定端口、环境标识、动态配置项等 |
 | `interpreter_args` | 传递给 Node.js 解释器本身（V8 引擎）的运行参数 | `['--max-old-space-size=4096']` | 调整 Node.js 内存上限（防止 OOM）、开启实验性特性或排查性能问题 |
 
@@ -269,23 +267,23 @@ Ecosystem 除了批量操作应用外，还可以指定应用的环境变量、�
 | `instances` | 启动的应用进程实例数量 | `'max'` 或 `4` | 充分利用多核 CPU 算力，提升并发吞吐量；设为 `'max'` 自动匹配 CPU 核心数 |
 | `exec_mode` | 进程执行模式，可选 `'fork'` 或 `'cluster'` | `'cluster'` | 无状态 Web/API 服务建议设为 `'cluster'` 实现负载均衡；有状态服务、Cron 定时任务必须用 `'fork'` |
 
-fork 是用独立的进程启动一个实例。
-cluster 是一个独立的 Primary 进程来协调多个独立的 NodeJs Worker 进程，具体创建 NodeJS Worker 进程的数量有 instances 来指定。它有点负载均衡的意思。
+`fork` 是用独立的进程启动单个实例。  
+`cluster` 是由一个独立的 Primary 进程来协调多个独立的 Node.js Worker 进程，具体创建 Node.js Worker 进程的数量由 `instances` 来指定，它内置了端口复用与负载均衡机制。
 
 #### 环境变量
 
 | 参数 | 作用 | 示例 | 使用场景 |
 | --- | --- | --- | --- |
 | `env` | 所有环境下生效的基础默认环境变量 | `{ NODE_ENV: 'development', PORT: 3000 }` | 本地开发或各个环境通用的基础环境变量配置 |
-| `env_name` | 指定生产环境生效的环境变量（通过 `--env name` 激活） | `{ NODE_ENV: 'production', PORT: 8080 }` | 环境切换： `env_test`、`env_stg` 或 `env_prod` |
+| `env_name` | 指定对应环境生效的环境变量（通过 `--env <name>` 激活） | `{ NODE_ENV: 'production', PORT: 8080 }` | 多环境切换，如 `env_production`、`env_test`、`env_staging` 等 |
 
-通用配置放到 `env` 上，环境配置放到 `env_name` 上。最终会执行合并，通过 `process.env` 获取。
+通用配置放到 `env` 上，环境特定配置放到 `env_<name>` 上。启动时最终会执行对象合并，应用内通过 `process.env` 获取。
 
 #### 进程生命周期管理
 
 | 参数 | 作用 | 示例 | 使用场景 |
 | --- | --- | --- | --- |
-| `autorestart` | 进程异常退出后是否自动重启，默认为 `true` | `false` | `pm2 stop` 和 `pm2 delete` 后不会重启，只有异常停止才会重启 |
+| `autorestart` | 进程异常退出后是否自动重启，默认为 `true` | `false` | `pm2 stop` 和 `pm2 delete` 后不会重启，只有异常退出才会重启；常驻服务建议保持 `true`，一次性脚本需设为 `false` |
 | `max_memory_restart` | 进程内存占用达到上限阈值时自动重启 | `'1G'` 或 `'500M'` | 防止程序因内存泄漏（Memory Leak）导致服务器崩溃 OOM |
 | `restart_delay` | 异常崩溃后延迟等待指定毫秒数再重启，默认 `0` | `3000` | 防止下游依赖（如数据库或 Redis）抖动断开时，应用高频连续重启刷爆系统 |
 | `max_restarts` | 连续不稳定重启的最大重试次数，达到后标记为 `errored`，默认 `16` | `10` | 配合 `min_uptime`，防止配置错误或端口冲突等致命 Bug 导致陷入死循环重启 |
@@ -312,48 +310,52 @@ cluster 是一个独立的 Primary 进程来协调多个独立的 NodeJs Worker 
 | `log_date_format` | 每行日志前自动追加的时间前缀格式（遵循 moment.js 规范） | `'YYYY-MM-DD HH:mm:ss'` | 应用内日志没有自带时间戳时，由 PM2 统一追加标准时间 |
 | `time` | 是否在日志前追加时间戳前缀，为 `true` 时自动生成 ISO 格式时间 | `true` | 快速启用日志时间戳，免于手动配置复杂的格式字符串 |
 
+---
 
 ## 开机自启动与进程恢复
 
-我们虽然可以使用 Ecosystem 来批量管理我们的应用，但如果服务器重启了，就需要手动登录上去再重启一下。为了解决这个问题，所有就需要用到开机自启动。
+我们虽然可以使用 Ecosystem 来批量管理我们的应用，但如果服务器重启了，就需要手动登录上去再重启一下。为了解决这个问题，所以就需要用到开机自启动。
 
 ### pm2 startup 和 pm2 unstartup
 
-`pm2 startup` 和 `pm2 unstartup` 分别是生成开启自启动命令 和 接触开机自启动命令。重点：**它们只生成命令，需要你手动执行这个命令**。
+`pm2 startup` 和 `pm2 unstartup` 分别是生成开机自启动命令和解除开机自启动命令。重点：**它们只生成命令，需要你手动执行这个命令**。
 
-它们输入的内容大概是：`sudo env PATH=$PATH:/Users/xxx/.local/share/fnm/node-versions/v22.21.1/installation/bin /Users/xxx/Library/pnpm/global/5/.pnpm/pm2@7.1.1/node_modules/pm2/bin/pm2 unstartup launchd -u xxx --hp /Users/xxx`。
+它们输出的内容大概是：`sudo env PATH=$PATH:/Users/xxx/.local/share/fnm/node-versions/v22.21.1/installation/bin /Users/xxx/Library/pnpm/global/5/.pnpm/pm2@7.1.1/node_modules/pm2/bin/pm2 unstartup launchd -u xxx --hp /Users/xxx`。
 
-当我们执行了开启自启动命令时，开机就会自动启动 pm2 的 Daemon 程序。那如何恢复我们的应用呢？需要继续往下看。
+当我们执行了开机自启动命令时，开机就会自动启动 PM2 的 Daemon 程序。那如何恢复我们的应用呢？需要继续往下看。
 
 ### pm2 save
 
-`pm2 save` 是保存当前的 `pm2 list` 状态（应用名称、启动脚本和配置、环境变量等启动信息、进程运行状态等）快照。不会保存应用内部的数据。当我们执行 `pm2 save` 时，会生成一个文件 `~/.pm2/dump.pm2`。
+`pm2 save` 是保存当前的 `pm2 list` 状态（应用名称、启动脚本和配置、环境变量等启动信息、进程运行状态等）快照，不会保存应用内部的业务数据。当我们执行 `pm2 save` 时，会生成一个快照文件 `~/.pm2/dump.pm2`。
 
-我们可以无限制的执行 `pm2 save`。最新的快照列表内容会覆盖掉之前旧的内容。
+我们可以无限制地执行 `pm2 save`。最新的快照列表内容会覆盖掉之前旧的内容。
 
-注意：**pm2 save 保存的是应用列表桩体**。也就是说当前应用如果是停止了，那么它保存的就是停止的。如果我们需要开机自启动，就需要先把应用都运行起来，然后再执行 `pm2 save`。
+注意：**`pm2 save` 保存的是应用列表状态**。也就是说当前应用如果是停止状态，那么它保存的就是停止状态。如果我们需要开机自启动恢复运行中的应用，就需要先把应用都运行起来，然后再执行 `pm2 save`。
 
-`pm2 cleardump` 可以清楚掉 `~/.pm2/dump.pm2` 文件，不需要手动删除。
+`pm2 cleardump` 可以清除掉 `~/.pm2/dump.pm2` 文件，不需要手动删除。
 
 ### pm2 resurrect
 
-我们现在已经有了应用列表快照，但是如何恢复呢？就是使用 `pm2 resurrect`。它会恢复我们保存的快照。当然我们不需要执行，pm2 在自启动时会自己执行。
+我们现在已经有了应用列表快照，如何恢复呢？就是使用 `pm2 resurrect`。它会读取并恢复我们保存的快照。通常不需要我们手动执行，PM2 在开机自启动时会自动触发执行它。
+
+---
 
 ## 运行模式
 
-## Fork Mode VS Cluster Mode
+### Fork Mode VS Cluster Mode
 
 默认的运行模式都是 Fork Mode。
 
-|Fork Mode|Cluster Mode|
-|--|--|
-|独立进程运行|多 Worker 共享端口|
-|启动多个实例时，每个进程都是独立的，不能共享同一个端口|多个 Worker 可以共享同一个监听端口|
-|适合单实例服务，或者多个独立端口的实例|适合多实例部署，希望利用多核 CPU，以及需要 Cluster 下的平滑 Reload|
+| Fork Mode | Cluster Mode |
+| --- | --- |
+| 独立进程运行 | 多 Worker 共享端口 |
+| 启动多个实例时，每个进程都是独立的，不能共享同一个端口 | 多个 Worker 可以共享同一个监听端口 |
+| 适合单实例服务，或者多个独立端口的实例 | 适合多实例部署，希望利用多核 CPU，以及需要 Cluster 下的平滑 Reload |
 
 ### Cluster Mode
 
 配置：
+
 ```js
 export default {
   apps: [
@@ -369,7 +371,8 @@ export default {
 ```
 
 启动 & 查看：
-```base
+
+```bash
 pm2 start ecosystem.config.js --env production
 
 pm2 list
@@ -379,15 +382,15 @@ pm2 list
 
 #### Cluster Mode 的负载均衡
 
-Node.js Cluster 默认使用 Round Robin（轮询） 调度策略，它会轮流将新连接分配给不同的 Worker。
-注意：它分配的是 TCP 链接，不是 HTTP 请求。所以如果 Client 与其中一个 Worker 建立了 TCP 链接，并启用了 HTTP Keep-Alive。这个 Client 的所有 HTTP 请求都会给到这个 Worker，而不是分配给其他的 Worker。
-所以，及时它的调度策略是Round Robin（轮询），所有的 Worker 处理的请求数也可能是不一样的。
+Node.js Cluster 默认使用 Round Robin（轮询）调度策略，它会轮流将新连接分配给不同的 Worker。  
+注意：它分配的是 TCP 连接，不是 HTTP 请求。所以如果 Client 与其中一个 Worker 建立了 TCP 连接，并启用了 HTTP Keep-Alive，这个 Client 的所有 HTTP 请求都会给到这个 Worker，而不是分配给其他的 Worker。  
+所以，即使它的调度策略是 Round Robin（轮询），所有的 Worker 处理的请求数也可能是不一样的。
 
 #### Cluster Mode 的 reload
 
-这个有点类似于 Nginx 的热更新，就是重启的时候，尽量保证服务的不中断。它的原理大致如下：
+这个类似于 Nginx 的热更新，重启的时候尽量保证服务不中断。它的原理大致如下：
 
-前提：假设我们有 2个 Worker： Worker1 和 Worker2。现在我们需要执行 pm2 reload。
+前提：假设我们有 2 个 Worker：Worker1 和 Worker2。现在我们需要执行 `pm2 reload`。
 
 1. 启动一个新的 Worker3
 2. Worker3 准备就绪，退出 Worker1。
@@ -397,26 +400,27 @@ Node.js Cluster 默认使用 Round Robin（轮询） 调度策略，它会轮流
 
 #### 需要注意的问题
 
-1. 多实例问题。每个 Worker 都是独立的 Node.js 进程，假设用户第一次请求被 Worker A 处理，登录信息保存在 A 的内存中。下一次请求被 Worker B 处理，B 就找不到这份 Session 了，所以还是 [Fastify 提到的身份认证](../fastify/README.md#身份认证--权限)问题，需要用到第三方存储（Redis）登录 [Session](../fastify/README.md#session--cookie) 或者 [Token](../fastify/README.md#token)。
+1. **多实例问题**：每个 Worker 都是独立的 Node.js 进程，假设用户第一次请求被 Worker A 处理，登录信息保存在 A 的内存中。下一次请求被 Worker B 处理，B 就找不到这份 Session 了。所以还是 [Fastify 提到的身份认证](../fastify/README.md#身份认证--权限)问题，需要用到第三方存储（Redis）登录 [Session](../fastify/README.md#session--cookie) 或者 [Token](../fastify/README.md#token)。
+2. **定时任务**：每个 Worker 都会执行。因为代码完全一致，所以如果应用内有定时任务，同一任务会被执行多次。定时任务建议独立拆分为单独进程（Fork 模式单实例运行）或使用外部调度工具管理。虽然 PM2 也提供了 `NODE_APP_INSTANCE` 环境变量标识，但依赖实例标识跳过任务依然不够优雅。
 
-2. 定时任务，每个 Worker 都会执行。因为是同一份代码，所以如果有定时任务最好通过其他的手段执行。虽然 pm2 也提供了每个实例的标识，但总感觉通过实例标识来判断不够优雅。
+---
 
 ## 生产环境
 
 ### 选择 Docker 还是 PM2
 
-Docker 或者 pm2 通常选择其一即可，不需要同时使用。因为他们的功能有重叠。如果是我肯定选 Docker 容器化了。如果你的项目特别小，也可以选择 pm2。
+Docker 与 PM2 通常选择其一即可，不需要同时套用，因为它们的功能有重叠。如果团队已有完善的容器化基础设施，推荐统一使用 Docker；如果机器资源有限或部署场景轻量，直接使用 PM2 维护成本更低。
 
 ### 生产环境的分工
 
 前提是使用 PM2 的情况：
 
-1. Nginx 使用反向代理，把请求打到对应的服务上。
+1. Nginx 使用反向代理，把请求分发到对应的服务端口上。
 2. PM2 使用 Cluster Mode，让同一个端口支持多个 Worker 运行。
-3. PM2 运行的是 NodeJS 服务
-4. Redis 存储需要跨 Worker 共享的数据。
-5. 使用 pm2 startup 和 pm2 save 配置开机恢复。
-6. 你可以根据自己的需要设置日志服务
+3. PM2 运行 Node.js 服务。
+4. Redis 存储需要跨 Worker 共享的数据（如 Session、缓存）。
+5. 使用 `pm2 startup` 和 `pm2 save` 配置开机自恢复。
+6. 根据需要配置集中式日志收集服务。
 
 ### 生产环境常用操作
 
@@ -425,9 +429,9 @@ Docker 或者 pm2 通常选择其一即可，不需要同时使用。因为他�
 pnpm build
 pm2 start ecosystem.config.js --env production
 pm2 save
-# ...如有需要可设置开机自启动
+# ...如有需要可设置开机自启动（pm2 startup）
 
-# 更新部署
+# 更新部署（平滑重载）
 pnpm build
 pm2 reload ecosystem.config.js --env production --only my-api
 
