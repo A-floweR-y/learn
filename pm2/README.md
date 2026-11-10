@@ -375,5 +375,22 @@ pm2 start ecosystem.config.js --env production
 pm2 list
 ```
 
-我们会看到同一个应用名称对应多个实例
+我们会看到同一个应用名称对应多个实例。
 
+#### Cluster Mode 的负载均衡
+
+Node.js Cluster 默认使用 Round Robin（轮询） 调度策略，它会轮流将新连接分配给不同的 Worker。
+注意：它分配的是 TCP 链接，不是 HTTP 请求。所以如果 Client 与其中一个 Worker 建立了 TCP 链接，并启用了 HTTP Keep-Alive。这个 Client 的所有 HTTP 请求都会给到这个 Worker，而不是分配给其他的 Worker。
+所以，及时它的调度策略是Round Robin（轮询），所有的 Worker 处理的请求数也可能是不一样的。
+
+#### Cluster Mode 的 reload
+
+这个有点类似于 Nginx 的热更新，就是重启的时候，尽量保证服务的不中断。它的原理大致如下：
+
+前提：假设我们有 2个 Worker： Worker1 和 Worker2。现在我们需要执行 pm2 reload。
+
+1. 启动一个新的 Worker3
+2. Worker3 准备就绪，退出 Worker1。
+3. 启动一个新的 Worker4
+4. Worker4 准备就绪，退出 Worker2。
+5. ...以此类推
