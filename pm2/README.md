@@ -406,3 +406,14 @@ Node.js Cluster 默认使用 Round Robin（轮询） 调度策略，它会轮流
 ### 选择 Docker 还是 PM2
 
 Docker 或者 pm2 通常选择其一即可，不需要同时使用。因为他们的功能有重叠。如果是我肯定选 Docker 容器化了。如果你的项目特别小，也可以选择 pm2。
+
+### 生产环境的分工
+
+前提是使用 PM2 的情况：
+
+1. Nginx 使用反向代理，把请求打到对应的服务上。
+2. PM2 使用 Cluster Mode，让同一个端口支持多个 Worker 运行。
+3. PM2 运行的是 NodeJS 服务
+4. Redis 存储需要跨 Worker 共享的数据。
+5. 使用 pm2 startup 和 pm2 save 配置开机恢复。
+6. 你可以根据自己的需要设置日志服务
