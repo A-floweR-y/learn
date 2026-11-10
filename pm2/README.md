@@ -339,3 +339,16 @@ cluster 是一个独立的 Primary 进程来协调多个独立的 NodeJs Worker 
 
 我们现在已经有了应用列表快照，但是如何恢复呢？就是使用 `pm2 resurrect`。它会恢复我们保存的快照。当然我们不需要执行，pm2 在自启动时会自己执行。
 
+## 运行模式
+
+## Fork Mode VS Cluster Mode
+
+默认的运行模式都是 Fork Mode。
+
+|Fork Mode|Cluster Mode|
+|--|--|
+|独立进程运行|多 Worker 共享端口|
+|启动多个实例时，每个进程都是独立的，不能共享同一个端口|多个 Worker 可以共享同一个监听端口|
+|适合单实例服务，或者多个独立端口的实例|适合多实例部署，希望利用多核 CPU，以及需要 Cluster 下的平滑 Reload|
+
+
