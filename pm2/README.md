@@ -400,3 +400,9 @@ Node.js Cluster 默认使用 Round Robin（轮询） 调度策略，它会轮流
 1. 多实例问题。每个 Worker 都是独立的 Node.js 进程，假设用户第一次请求被 Worker A 处理，登录信息保存在 A 的内存中。下一次请求被 Worker B 处理，B 就找不到这份 Session 了，所以还是 [Fastify 提到的身份认证](../fastify/README.md#身份认证--权限)问题，需要用到第三方存储（Redis）登录 [Session](../fastify/README.md#session--cookie) 或者 [Token](../fastify/README.md#token)。
 
 2. 定时任务，每个 Worker 都会执行。因为是同一份代码，所以如果有定时任务最好通过其他的手段执行。虽然 pm2 也提供了每个实例的标识，但总感觉通过实例标识来判断不够优雅。
+
+## 生产环境
+
+### 选择 Docker 还是 PM2
+
+Docker 或者 pm2 通常选择其一即可，不需要同时使用。因为他们的功能有重叠。如果是我肯定选 Docker 容器化了。如果你的项目特别小，也可以选择 pm2。
