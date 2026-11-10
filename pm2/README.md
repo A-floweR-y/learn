@@ -351,4 +351,29 @@ cluster 是一个独立的 Primary 进程来协调多个独立的 NodeJs Worker 
 |启动多个实例时，每个进程都是独立的，不能共享同一个端口|多个 Worker 可以共享同一个监听端口|
 |适合单实例服务，或者多个独立端口的实例|适合多实例部署，希望利用多核 CPU，以及需要 Cluster 下的平滑 Reload|
 
+### Cluster Mode
+
+配置：
+```js
+export default {
+  apps: [
+    {
+      name: 'user-api',
+      script: './dist/server.js',
+      // 启动 Cluster Mode
+      exec_mode: 'cluster',
+      instances: 4,
+    },
+  ],
+};
+```
+
+启动 & 查看：
+```base
+pm2 start ecosystem.config.js --env production
+
+pm2 list
+```
+
+我们会看到同一个应用名称对应多个实例
 
