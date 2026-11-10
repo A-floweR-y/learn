@@ -417,3 +417,24 @@ Docker 或者 pm2 通常选择其一即可，不需要同时使用。因为他�
 4. Redis 存储需要跨 Worker 共享的数据。
 5. 使用 pm2 startup 和 pm2 save 配置开机恢复。
 6. 你可以根据自己的需要设置日志服务
+
+### 生产环境常用操作
+
+```bash
+# 首次部署
+pnpm build
+pm2 start ecosystem.config.js --env production
+pm2 save
+# ...如有需要可设置开机自启动
+
+# 更新部署
+pnpm build
+pm2 reload ecosystem.config.js --env production --only my-api
+
+# 查看状态和日志
+pm2 list
+pm2 logs my-api
+
+# 服务异常时重启
+pm2 restart my-api
+```
