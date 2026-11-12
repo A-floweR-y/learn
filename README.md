@@ -19,6 +19,7 @@
     - [嵌套 location 匹配流程图](./nginx/location-nested-flow.md) - 嵌套 Location 逻辑可视化
     - [Nginx 常用变量](./nginx/variables.md) - $ 给你需要的东西
     - [静态文件服务器](./nginx/static-file-server.md) -  Nginx 正在为您查找文件
+    - [反向代理](./nginx/reverse-proxy.md) -  我将转达你的请求
  - [Fastify](./fastify/README.md) - 天下武功，唯快不破
  - [PM2](./pm2/README.md) - 我将守护你的进程，至死方休
 
