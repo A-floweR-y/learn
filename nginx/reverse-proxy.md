@@ -50,7 +50,7 @@ http {
   server {
 	  listen 8080;
 
-    location /api {
+    location /api/ {
       proxy_pass http://localhost:3000;
     }
 
@@ -71,3 +71,51 @@ Backend received: GET /api/users
 ```
 
 说明我们代理成功了，请求到了我们的 NodeJS 后端服务上。
+
+## 反向代理-URI 替换规则
+
+URI 替换规则是反向代理中最重要的一个规则。**当反向代理的服务后面有路径时，请求 URI 中匹配 location 的那一部分，会被指定的 Path 替换掉**。
+
+### 什么叫“反向代理的服务后面有路径”？
+
+我们现在写的反向代理如下：
+
+```nginx
+http {
+  server {
+    location /api/ {
+      # 主要看这里
+      proxy_pass http://localhost:3000;
+    }
+  }
+}
+```
+
+我们的 proxy_pass 代理的服务只有一个 Host + Port。这种情况，所有请求 /api 的 URI，会原封不动的给我们代理的服务。比如请求 `GET /api/users`，后端服务就会收到 `/api/users`。
+
+那带路径就是下面的情况：
+
+```nginx
+http {
+  server {
+    location /api/ {
+      # 这里增加了 /backend/ 的路径
+      proxy_pass http://localhost:3000/backend/;
+    }
+  }
+}
+```
+
+这时候
+- **请求 URI 中匹配 location 的那一部分** 的值是 `/api/`
+- **指定的 Path** 的值是 `/backend/`
+
+因为 “**请求 URI 中匹配 location 的那一部分，会被指定的 Path 替换掉**”，所以 `/backend/` 替换掉 `/api/` 后，后端收到的情况是：`/backend/users`。
+
+我们测试一下。请求 `curl http://localhost:8080/api/users`，返回内容如下：
+
+```text
+Backend received: GET /backend/users
+```
+
+注意：**只加一个 `/` 也算是加了路径。也会走这套替换规则**。
