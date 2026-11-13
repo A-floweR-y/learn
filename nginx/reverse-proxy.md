@@ -190,3 +190,48 @@ curl http://localhost:8080/api/users \
   }
 }
 ```
+
+### proxy_set_header 主动设置请求头
+
+> `proxy_set_header` 可以让 Nginx 在转发请求时，**设置**或**覆盖**指定的 HTTP Header。
+
+那如果我们想让后端收到的 Host，就是 Client 发起的 Host，我们就可以使用 `proxy_set_header` 来设置：
+
+```nginx
+events {
+  worker_connections 1024;
+}
+
+http {
+  server {
+	  listen 8080;
+
+    location /api/ {
+      proxy_pass http://localhost:3000;
+
+      # ！！！重点在这里
+      proxy_set_header Host $http_host;
+    }
+
+    # 兜底逻辑
+    location / {
+      return 200 "test Headers";
+    }
+  }
+}
+```
+
+我们再测试一下，只看 host：`curl http://localhost:8080/api/users`。返回结果如下：
+
+```json
+{
+  "url": "/api/users",
+  "headers": {
+    // 这里是 8080 了
+    "host": "localhost:8080",
+    "user-agent": "curl/8.7.1",
+    "accept": "*/*"
+  }
+}
+```
+
