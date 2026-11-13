@@ -235,3 +235,11 @@ http {
 }
 ```
 
+#### proxy_set_header 经常需要设置的请求头
+
+|Header	|作用|	常见配置|
+|--|--|--|
+|Host	|告诉 Backend 原始访问域名|	$host|
+|X-Real-IP	|传递 Nginx 看到的客户端 IP	|$remote_addr|
+|X-Forwarded-For	|传递代理链路 IP	|$proxy_add_x_forwarded_for|
+|X-Forwarded-Proto|	传递客户端访问 Nginx 时使用的协议	|$scheme|
