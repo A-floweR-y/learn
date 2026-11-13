@@ -121,3 +121,72 @@ Backend received: GET /backend/users
 **特别注意**：
 1. 只加一个 `/` 也算是加了路径。也会走这套替换规则。
 2. 替换规则不会影响 query 的转发。
+
+## 请求 Header 的转发
+
+> Nginx 是一个 HTTP 代理。它会构造一个发往 Backend 的新 HTTP 请求，而不是简单地把 Client 的 TCP 连接原封不动地传过去。
+
+所以，Nginx 收到 Client 请求后，再转发给 Node.js，会发 Client 设置的 Headers 原封不动的给 Node.js 服务，但是这次请求的 Host，是 Nginx 请求的 Host，而不是 Client 请求的 Host。
+
+最简单的小例子，我们在 Node.js 服务打印一下 Headers:
+
+```js
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/plain',
+  });
+
+  // 这里在打印 url 和 headers
+  res.end(JSON.stringify({
+    url: req.url,
+    headers: req.headers,
+  }, null, 2))
+});
+
+server.listen(3000, () => {
+  console.log('Backend listening on http://localhost:3000');
+});
+```
+
+Nginx 的配置如下：
+
+```nginx
+events {
+  worker_connections 1024;
+}
+
+http {
+  server {
+	  listen 8080;
+
+    location /api/ {
+      proxy_pass http://localhost:3000;
+    }
+  }
+}
+```
+
+请求后端服务，并设置我们自定义的请求头：
+
+```bash
+curl http://localhost:8080/api/users \
+-H "AAA: this is aaa" \
+-H "B-B: this is b-b"
+```
+
+返回结果如下：
+```json
+{
+  "url": "/api/users",
+  "headers": {
+    // 注意，这里 host 端口是 3000，而不是 8080
+    "host": "localhost:3000", 
+    "user-agent": "curl/8.7.1",
+    "accept": "*/*",
+    "aaa": "this is aaa",
+    "b-b": "this is b-b"
+  }
+}
+```
