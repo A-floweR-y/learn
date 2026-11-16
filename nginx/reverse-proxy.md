@@ -351,15 +351,20 @@ OK，重定向的问题搞清楚了，但是我们请求的路径是 `/old-api/u
 
 通过 curl 打印的信息，我们发现第一次重定向的地址就是 `http://localhost:8080/new-api/`，所以错误发生在：`return 302 /new-api/;`。后面的地址我们写死了 `/new-api/` 导致的。
 
-那有没有办法把后面的内容也加上呢？那写死肯定不行。我们上面说过的 Rewrite 就方便来做这件事情了：
+那有没有办法把后面的内容也加上呢？那写死肯定不行。下面2种方式都可以：
 
 ```nginx
 http {
   server {
-    # 旧服务
+    # 旧服务-方法1-使用 Rewrite
     location /old-api/ {
-      # ！！！重点在这里
       rewrite /old-api/(.*)$ /new-api/$1 redirect;
+    }
+
+
+    # 旧服务-方法2-使用 Redirect
+    location /old-api/ {
+      redirect 302 /new-api/$request_uri;;
     }
   }
 }
