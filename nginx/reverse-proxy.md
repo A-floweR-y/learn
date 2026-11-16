@@ -279,7 +279,7 @@ http {
 ```
 
 请求 `curl http://localhost:8080/api/users` 我们会收到：
-```bash
+```text
 Backend received: GET /backend/users
 ```
 
@@ -305,3 +305,62 @@ flag 枚举介绍
 |permanent|返回永久重定向（301）|
 
 关于重定向的介绍，会在下面说。
+
+### Redirect
+
+重定向一般都是通过 `return` `301` 或者 `302` 来完成的。我们也先看一个例子，然后再介绍这两个的区别。
+
+下面的例子我们指定了一个**最新的服务地址**和**旧的服务地址**。当访问旧的服务地址时，会重定向到新的服务地址。
+```nginx
+events {
+  worker_connections 1024;
+}
+
+http {
+  server {
+	  listen 8080;
+
+    # 旧服务
+    location /old-api/ {
+      return 302 /new-api/;
+    }
+
+    # 最新的服务
+    location /new-api/ {
+      proxy_pass http://localhost:3000;
+    }
+  }
+}
+```
+
+为了让我们看到这个转发的过程，我们给 `curl` 增加了 `-iL` 选项，请求 `curl -iL http://localhost:8080/old-api/users` 我们会收到（以下内容删除了无用信息，同时增加了说明）：
+```text
+# 第一次请求，返回了 302
+HTTP/1.1 302 Moved Temporarily
+# Location 指定了新的地址 http://localhost:8080/new-api/
+Location: http://localhost:8080/new-api/
+
+# 第二次请求，当前的地址是：http://localhost:8080/new-api/
+HTTP/1.1 200 OK
+
+# 接口返回
+Backend received: GET /new-api/
+```
+
+OK，重定向的问题搞清楚了，但是我们请求的路径是 `/old-api/users`，怎么新地址只有 `/new-api`，不应该是 `/new-api/users` 吗？
+
+通过 curl 打印的信息，我们发现第一次重定向的地址就是 `http://localhost:8080/new-api/`，所以错误发生在：`return 302 /new-api/;`。后面的地址我们写死了 `/new-api/` 导致的。
+
+那有没有办法把后面的内容也加上呢？那写死肯定不行。我们上面说过的 Rewrite 就方便来做这件事情了：
+
+```nginx
+http {
+  server {
+    # 旧服务
+    location /old-api/ {
+      # ！！！重点在这里
+      rewrite /old-api/(.*)$ /new-api/$1 redirect;
+    }
+  }
+}
+```
