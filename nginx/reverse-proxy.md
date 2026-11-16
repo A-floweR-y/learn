@@ -251,3 +251,57 @@ http {
 |X-Real-IP	|传递 Nginx 看到的客户端 IP	|$remote_addr|
 |X-Forwarded-For	|传递代理链路 IP	|$proxy_add_x_forwarded_for|
 |X-Forwarded-Proto|	传递客户端访问 Nginx 时使用的协议	|$scheme|
+
+## Rewrite & Redirect
+
+### Rewrite
+
+Rewrite 就是修改 Location 匹配到的 URL，我们先写个小例子(**重点看 rewrite**)：
+
+Nginx 配置：
+```nginx
+events {
+  worker_connections 1024;
+}
+
+http {
+  server {
+	  listen 8080;
+
+    location /api/ {
+      # 重点看这一行
+      rewrite ^/api/(.*)$ /backend/$1 break;
+
+      proxy_pass http://localhost:3000;
+    }
+  }
+}
+```
+
+请求 `curl http://localhost:8080/api/users` 我们会收到：
+```bash
+Backend received: GET /backend/users
+```
+
+这时候你可能会说，不是给 `proxy_pass` 后的服务后面指定 `/backend/` 也是这个效果吗？那 Rewrite 的价值又是什么呢？你可以理解成 **Rewrite 成一个更灵活的 URI 修改方案**。如果指定路径就可以做到，那就指定路径。如果需要更复杂的替换，就使用 Rewrite。
+
+#### Rewrite 语法
+
+```bash
+rewrite regex replacement [flag];
+```
+|参数|作用|
+|--|--|
+|regex	|用正则表达式匹配当前 URI|
+|replacement	|根据匹配结果生成新的 URI。可以使用正则分组，比如：/new/$1|
+|flag	|控制改写之后 Nginx 如何继续处理|
+
+flag 枚举介绍
+|值|作用|
+|--|--|
+|last| 改写 URI，然后重新进行 Location 匹配|
+|break|改写 URI，但留在当前 Location。（*我们例子就使用了这个*）|
+|redirect|返回临时重定向（302）|
+|permanent|返回永久重定向（301）|
+
+关于重定向的介绍，会在下面说。
