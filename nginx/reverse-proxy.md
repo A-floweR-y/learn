@@ -72,6 +72,14 @@ Backend received: GET /api/users
 
 说明我们代理成功了，请求到了我们的 NodeJS 后端服务上。
 
+#### 小提示
+
+一下两点有可能帮助定位问题：
+
+- HTTP Code 502 表示 Nginx 没有连接上后端服务。
+- HTTP Code 500 表示后端服务发生错误。
+
+
 ## 反向代理-URI 替换规则
 
 URI 替换规则是反向代理中最重要的一个规则。**当反向代理的服务后面有路径时，请求 URI 中匹配 location 的那一部分，会被指定的 Path 替换掉**。
